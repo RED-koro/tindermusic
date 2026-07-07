@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Tune — Swipe ta musique</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="phone">
+  <!-- Barre de statut factice -->
+  <div class="statusbar">
+    <span class="sb-time">9:41</span>
+    <span class="sb-icons">▮▮▮ ⌁ ▰</span>
+  </div>
+
+  <!-- ================= DÉCOUVRIR ================= -->
+  <section class="screen" id="screen-discover">
+    <header class="topbar">
+      <button class="icon-btn" id="btn-filters" title="Filtres">☰</button>
+      <h1>Découvrir</h1>
+      <button class="icon-btn" title="Compte">◉</button>
+    </header>
+
+    <div class="deck" id="deck"></div>
+
+    <p class="hint" id="swipe-hint">Swipe pour découvrir de nouveaux artistes</p>
+
+    <div class="actions">
+      <button class="action-btn nope" id="btn-nope" title="Pas pour moi">✕</button>
+      <button class="action-btn small" id="btn-later" title="À revoir">⏱</button>
+      <button class="action-btn small" id="btn-info" title="Infos">i</button>
+      <button class="action-btn like" id="btn-like" title="J'aime">❤</button>
+    </div>
+  </section>
+
+  <!-- ================= BIBLIOTHÈQUE ================= -->
+  <section class="screen hidden" id="screen-library">
+    <header class="topbar">
+      <span class="icon-btn"></span>
+      <h1>Ma bibliothèque</h1>
+      <button class="icon-btn" title="Réglages">⚙</button>
+    </header>
+
+    <div class="lib-tabs">
+      <button class="lib-tab active" data-bucket="liked">❤ Aimés</button>
+      <button class="lib-tab" data-bucket="later">⏱ À revoir</button>
+      <button class="lib-tab" data-bucket="disliked">✕ Pas pour moi</button>
+    </div>
+
+    <div class="lib-list" id="lib-list"></div>
+  </section>
+
+  <!-- ================= RECHERCHER ================= -->
+  <section class="screen hidden" id="screen-search">
+    <header class="topbar">
+      <span class="icon-btn"></span>
+      <h1>Rechercher</h1>
+      <span class="icon-btn"></span>
+    </header>
+    <div class="search-wrap">
+      <input type="search" id="search-input" placeholder="Titre, artiste ou genre…" autocomplete="off" />
+    </div>
+    <div class="lib-list" id="search-results"></div>
+  </section>
+
+  <!-- ================= PROFIL ================= -->
+  <section class="screen hidden" id="screen-profile">
+    <header class="topbar">
+      <span class="icon-btn"></span>
+      <h1>Profil</h1>
+      <span class="icon-btn"></span>
+    </header>
+    <div class="profile" id="profile-content"></div>
+  </section>
+
+  <!-- ================= ESPACE ARTISTE ================= -->
+  <section class="screen hidden" id="screen-artist">
+    <header class="topbar">
+      <button class="icon-btn" id="artist-back" title="Retour">‹</button>
+      <h1>Espace artiste</h1>
+      <span class="icon-btn"></span>
+    </header>
+    <div class="artist-wrap">
+      <p class="af-intro">Publie un titre : il apparaîtra dans le deck <strong>Découvrir</strong> des auditeurs, avec un extrait de 30 secondes.</p>
+      <form id="artist-form">
+        <label>Nom d'artiste
+          <input id="af-artist" type="text" placeholder="Ex : SOLARIS" required />
+        </label>
+        <label>Titre du morceau
+          <input id="af-title" type="text" placeholder="Ex : Lune Rouge" required />
+        </label>
+        <label>Genres <small>(séparés par des virgules)</small>
+          <input id="af-genres" type="text" placeholder="Indie, Électro, Français" />
+        </label>
+        <label>Description <small>(optionnelle — raconte l'histoire du morceau, elle s'affiche sur la carte)</small>
+          <textarea id="af-desc" rows="3" maxlength="300" placeholder="Ex : Enregistré dans ma chambre un soir d'orage, ce titre parle de…"></textarea>
+        </label>
+        <label>Fichier audio <small>(MP3, WAV, M4A…)</small>
+          <input id="af-audio" type="file" accept="audio/*" required />
+        </label>
+        <label>Pochette <small>(optionnelle — sinon générée automatiquement)</small>
+          <input id="af-cover" type="file" accept="image/*" />
+        </label>
+        <label>Début de l'extrait <small>(en secondes, ex : 45 pour démarrer au refrain)</small>
+          <input id="af-start" type="number" min="0" value="0" />
+        </label>
+        <button type="submit" class="af-submit">Publier sur Tune</button>
+      </form>
+      <h3 class="af-h3">Mes titres publiés</h3>
+      <div id="artist-tracks"></div>
+    </div>
+  </section>
+
+  <!-- Mini-player -->
+  <div class="miniplayer hidden" id="miniplayer">
+    <div class="mp-cover" id="mp-cover"></div>
+    <div class="mp-meta">
+      <strong id="mp-title"></strong>
+      <span id="mp-artist"></span>
+    </div>
+    <button class="mp-btn" id="mp-play">▶</button>
+    <button class="mp-btn" id="mp-next">⏭</button>
+  </div>
+
+  <!-- Barre d'onglets -->
+  <nav class="tabbar">
+    <button class="tab active" data-screen="discover"><span class="tab-ico">◎</span>Découvrir</button>
+    <button class="tab" data-screen="library"><span class="tab-ico">♫</span>Bibliothèque</button>
+    <button class="tab" data-screen="search"><span class="tab-ico">⌕</span>Rechercher</button>
+    <button class="tab" data-screen="profile"><span class="tab-ico">◉</span>Profil</button>
+  </nav>
+
+  <div class="homebar"></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
