@@ -6,6 +6,7 @@
 
 import { Platform } from "react-native";
 import { Track } from "./catalog";
+import { FEATURED_ARTISTS, FEATURED_LABEL } from "./featured";
 
 const API = "https://api.deezer.com";
 
@@ -61,22 +62,33 @@ interface DeezerTrack {
   id: number;
   title: string;
   preview: string;
-  artist: { name: string };
+  artist: { id?: number; name: string };
   album: { title: string; cover_big?: string; cover_medium?: string };
 }
 
-function toTrack(t: DeezerTrack, genreLabel?: string): Track | null {
+interface DeezerArtist {
+  id: number;
+  name: string;
+}
+
+function toTrack(
+  t: DeezerTrack,
+  genreLabel?: string,
+  featured = false
+): Track | null {
   if (!t?.preview) return null; // sans extrait, inutilisable dans Tune
   return {
     id: `dz-${t.id}`,
     title: t.title,
     artist: t.artist?.name ?? "Artiste inconnu",
+    artistId: t.artist?.id,
     genres: [genreLabel ?? "Découverte"],
     // scene/hue inutilisés : la vraie pochette remplace le SVG généré
     scene: "sun",
     hue: 0,
     hue2: 0,
     deezer: true,
+    featured: featured || undefined,
     album: t.album?.title,
     previewUrl: t.preview,
     coverUri: t.album?.cover_big || t.album?.cover_medium || null,
@@ -108,25 +120,88 @@ export async function fetchChart(
   return (d.data ?? []).map(t => toTrack(t, label)).filter((t): t is Track => !!t);
 }
 
-/** Construit le flux Découvrir : tendances globales + charts des genres
-    préférés de l'utilisateur (l'algo pilote ce qu'on va chercher). */
+/** Top titres d'un artiste (tagués avec le genre du titre "graine"). */
+export async function fetchArtistTop(
+  artistId: number,
+  genreLabel: string,
+  limit = 5,
+  featured = false
+): Promise<Track[]> {
+  const d = await request<{ data?: DeezerTrack[] }>(
+    `/artist/${artistId}/top?limit=${limit}`
+  );
+  return (d.data ?? [])
+    .map(t => toTrack(t, genreLabel, featured))
+    .filter((t): t is Track => !!t);
+}
+
+export async function fetchRelatedArtists(
+  artistId: number,
+  limit = 2
+): Promise<DeezerArtist[]> {
+  const d = await request<{ data?: DeezerArtist[] }>(
+    `/artist/${artistId}/related?limit=${limit}`
+  );
+  return (d.data ?? []).slice(0, limit);
+}
+
+/** Les artistes maison de Tune : leurs titres arrivent en priorité dans le deck. */
+export async function fetchFeaturedTracks(): Promise<Track[]> {
+  const lists = await Promise.all(
+    FEATURED_ARTISTS.map(a =>
+      fetchArtistTop(a.id, FEATURED_LABEL, 7, true).catch(() => [])
+    )
+  );
+  return dedupe(lists);
+}
+
+export interface ArtistSeed {
+  artistId: number;
+  genres: string[];
+}
+
+/** Construit le flux Découvrir (algo v2) :
+    artistes maison + tendances + charts des genres préférés + recommandations
+    « parce que tu as aimé cet artiste » (top de l'artiste + artistes similaires). */
 export async function fetchDiscoveryFeed(
   genreScores: Record<string, number>,
+  seeds: ArtistSeed[] = [],
   perChart = 20
 ): Promise<Track[]> {
   const ranked = [...DEEZER_GENRES].sort(
     (a, b) => (genreScores[b.label] || 0) - (genreScores[a.label] || 0)
   );
-  const random = DEEZER_GENRES[Math.floor(Math.random() * DEEZER_GENRES.length)];
+  // exploration : un genre au hasard, mais jamais un genre clairement rejeté
+  const explorable = DEEZER_GENRES.filter(g => (genreScores[g.label] || 0) > -3);
+  const random = explorable[Math.floor(Math.random() * explorable.length)];
   const picks = [
     { id: 0, label: "Tendances" },
-    ...ranked.slice(0, 2),
-    random,
+    ...ranked.slice(0, 2).filter(g => (genreScores[g.label] || 0) > 0),
+    ...(random ? [random] : []),
   ].filter((g, i, arr) => arr.findIndex(x => x.id === g.id) === i);
 
-  const lists = await Promise.all(
-    picks.map(p => fetchChart(p.id, p.label, perChart).catch(() => []))
+  const chartJobs = picks.map(p =>
+    fetchChart(p.id, p.label, perChart).catch(() => [])
   );
+
+  // « parce que tu as aimé X » : top de l'artiste + tops de 2 artistes similaires
+  const seedJobs = seeds.slice(0, 2).map(async seed => {
+    const label = seed.genres[0] ?? "Découverte";
+    try {
+      const [own, related] = await Promise.all([
+        fetchArtistTop(seed.artistId, label, 4),
+        fetchRelatedArtists(seed.artistId, 2),
+      ]);
+      const relatedTops = await Promise.all(
+        related.map(a => fetchArtistTop(a.id, label, 4).catch(() => []))
+      );
+      return dedupe([own, ...relatedTops]);
+    } catch {
+      return [] as Track[];
+    }
+  });
+
+  const lists = await Promise.all([...seedJobs, ...chartJobs]);
   return dedupe(lists);
 }
 

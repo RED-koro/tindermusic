@@ -29,6 +29,12 @@ export default function ProfileScreen() {
     .slice(0, 3);
   const maxAbs = Math.max(1, ...scores.map(([, v]) => Math.abs(v)));
 
+  const artistEntries = Object.entries(state.artistScores)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4);
+  const maxArtist = Math.max(1, ...artistEntries.map(([, v]) => v));
+
   const confirmReset = () => {
     const doReset = () => {
       resetData();
@@ -74,6 +80,15 @@ export default function ProfileScreen() {
           liked.map(([g, v]) => (
             <GenreBar key={g} name={g} ratio={Math.abs(v) / maxAbs} />
           ))
+        )}
+
+        {artistEntries.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Tes artistes préférés</Text>
+            {artistEntries.map(([a, v]) => (
+              <GenreBar key={a} name={a} ratio={v / maxArtist} />
+            ))}
+          </>
         )}
 
         {avoided.length > 0 && (

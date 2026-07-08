@@ -17,28 +17,41 @@ npx expo start --web    # aperçu navigateur
 npx tsc --noEmit        # vérification TypeScript
 ```
 
-## Vraie musique (Deezer)
+## Vraie musique (Deezer) + artistes maison
 
-Le deck Découvrir et la recherche sont branchés sur l'**API publique Deezer**
-(gratuite, sans clé) : extraits officiels de 30 s, vraies pochettes, charts par
-genre. `src/lib/deezer.ts` :
+Toute la musique vient de l'**API publique Deezer** (gratuite, sans clé) :
+extraits officiels de 30 s, vraies pochettes, charts par genre. `src/lib/deezer.ts` :
 
-- le flux Découvrir mélange les tendances globales et les charts des genres
-  préférés de l'utilisateur (l'algo pilote ce qu'on va chercher) ;
+- **Artistes maison** (`src/lib/featured.ts` : Yohann Zveig, NoLaDiK,
+  Vincent Bidal, Mélanie Noé) : leurs titres sont chargés en premier et
+  boostés dans le deck ;
+- le flux Découvrir mélange tendances, charts des genres préférés et
+  recommandations « parce que tu as aimé X » (top de l'artiste + artistes
+  similaires Deezer) ;
 - la recherche interroge tout le catalogue Deezer (debounce 450 ms) ;
 - les URLs d'extraits expirent : elles sont rafraîchies au moment de la lecture ;
-- les métadonnées des titres classés sont persistées (`savedDeezer`) pour que la
-  bibliothèque survive au redémarrage ;
-- sans réseau, l'app retombe sur le catalogue local embarqué.
+- les métadonnées des titres classés sont persistées (`savedDeezer`).
 
 Sur web, l'API Deezer n'envoie pas de CORS → JSONP (téléphone : fetch direct).
+
+## Algo v2 (`src/lib/store.tsx`)
+
+- **Deux signaux** : score par genre **et score par artiste** (l'artiste pèse
+  1,5× un genre dans l'affinité d'un titre) ;
+- **Pondération par temps d'écoute** : like après ≥ 10 s d'écoute = +3 (vs +2) ;
+  rejet après ≥ 15 s = −3 (vrai rejet) ; rejet en < 2 s = −1 (jugé sur la
+  pochette) ; « à revoir » = +1 ;
+- **Oubli progressif** : chaque swipe atténue les scores de 2 % (un goût
+  se dissipe en ~35 swipes s'il n'est pas renforcé) ;
+- **Exploration** : un genre aléatoire (jamais un genre rejeté < −3) est
+  toujours mélangé au flux pour éviter la bulle ;
+- l'annulation d'un swipe rend le delta exact qui avait été appliqué.
 
 ## Architecture
 
 - `src/app/` — écrans (expo-router) : `(tabs)/` Découvrir, Bibliothèque, Rechercher, Profil + `artist.tsx` (Espace artiste)
-- `src/lib/` — `catalog.ts` (titres de démo), `store.tsx` (état + algo v1, persisté en AsyncStorage), `audio.ts` (lecture des extraits, expo-audio), `covers.tsx` (pochettes SVG générées), `moderation.ts` (filtres de publication), `previews.ts` (mapping des extraits embarqués)
+- `src/lib/` — `catalog.ts` (types), `featured.ts` (artistes maison), `deezer.ts` (API musique), `store.tsx` (état + algo v2, persisté en AsyncStorage), `audio.ts` (lecture des extraits, expo-audio), `covers.tsx` (pochettes SVG pour les uploads sans image), `moderation.ts` (filtres de publication)
 - `src/components/` — `TrackRow`, `MiniPlayer`
-- `assets/previews/` — extraits 30 s du catalogue (M4A), régénérables : `bash scripts/build-previews.sh`
 - Les fichiers importés par les artistes sont copiés dans le dossier documents de l'app (`uploads/`)
 
 ## Modération des publications (v1)

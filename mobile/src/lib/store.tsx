@@ -12,7 +12,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { CATALOG, hashCode, SCENES, Track } from "./catalog";
+import { hashCode, SCENES, Track } from "./catalog";
 import { REPORTS_TO_HIDE } from "./moderation";
 
 export type Bucket = "liked" | "later" | "disliked";
@@ -43,6 +43,9 @@ interface LastDecision {
   id: string;
   bucket: Bucket;
   genres: string[];
+  artist?: string;
+  /** delta réellement appliqué (dépend du temps d'écoute) — pour annuler exactement */
+  delta?: number;
 }
 
 interface TuneState {
@@ -50,6 +53,8 @@ interface TuneState {
   later: string[];
   disliked: string[];
   genreScores: Record<string, number>;
+  /** Algo v2 : affinité par artiste, en plus des genres */
+  artistScores: Record<string, number>;
   swipes: number;
   customs: CustomTrackMeta[];
   /** Métadonnées des titres Deezer classés (bibliothèque persistante) */
@@ -65,6 +70,7 @@ const EMPTY: TuneState = {
   later: [],
   disliked: [],
   genreScores: {},
+  artistScores: {},
   swipes: 0,
   customs: [],
   savedDeezer: {},
@@ -99,7 +105,7 @@ interface StoreValue {
   byId: Record<string, Track>;
   bucketOf: (id: string) => Bucket | null;
   affinity: (track: Track) => number;
-  decide: (track: Track, bucket: Bucket) => void;
+  decide: (track: Track, bucket: Bucket, listenSeconds?: number) => void;
   undoLastDecision: () => void;
   /** Rend des titres Deezer (flux, recherche) résolubles via byId le temps de la session */
   registerTracks: (tracks: Track[]) => void;
@@ -128,11 +134,22 @@ function withoutId(state: TuneState, id: string): TuneState {
 
 function addScores(
   scores: Record<string, number>,
-  genres: string[],
+  keys: string[],
   delta: number
 ): Record<string, number> {
   const next = { ...scores };
-  for (const g of genres) next[g] = (next[g] || 0) + delta;
+  for (const k of keys) next[k] = Math.round(((next[k] || 0) + delta) * 1000) / 1000;
+  return next;
+}
+
+/** Oubli progressif : chaque swipe atténue légèrement les goûts anciens
+    (−2 % par swipe → un score se réduit de moitié en ~35 swipes). */
+function decayScores(scores: Record<string, number>): Record<string, number> {
+  const next: Record<string, number> = {};
+  for (const [k, v] of Object.entries(scores)) {
+    const d = Math.round(v * 0.98 * 1000) / 1000;
+    if (Math.abs(d) >= 0.05) next[k] = d;
+  }
   return next;
 }
 
@@ -179,10 +196,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // seuls les titres validés par la modération sont proposés aux auditeurs
   const allTracks = useMemo(
-    () => [
-      ...CATALOG,
-      ...state.customs.filter(c => c.status === "approved").map(customToTrack),
-    ],
+    () => state.customs.filter(c => c.status === "approved").map(customToTrack),
     [state.customs]
   );
   const byId = useMemo(
@@ -204,40 +218,63 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [state.liked, state.later, state.disliked]
   );
 
+  /** Affinité v2 : genres + artiste (l'artiste pèse plus lourd qu'un genre) */
   const affinity = useCallback(
     (track: Track) =>
-      track.genres.reduce((s, g) => s + (state.genreScores[g] || 0), 0),
-    [state.genreScores]
+      track.genres.reduce((s, g) => s + (state.genreScores[g] || 0), 0) +
+      1.5 * (state.artistScores[track.artist] || 0),
+    [state.genreScores, state.artistScores]
   );
 
-  const decide = useCallback((track: Track, bucket: Bucket) => {
-    const delta = bucket === "liked" ? 2 : bucket === "later" ? 1 : -2;
-    setState(prev => {
-      const next = withoutId(prev, track.id);
-      return {
-        ...next,
-        [bucket]: [...next[bucket], track.id],
-        swipes: prev.swipes + 1,
-        genreScores: addScores(prev.genreScores, track.genres, delta),
-        freshId: prev.freshId === track.id ? null : prev.freshId,
-        lastDecision: { id: track.id, bucket, genres: track.genres },
-        savedDeezer: track.deezer
-          ? { ...prev.savedDeezer, [track.id]: track }
-          : prev.savedDeezer,
-      };
-    });
-  }, []);
+  /** Décision v2 : le temps d'écoute avant le swipe pondère le signal.
+      Liker après 10 s d'écoute vaut plus qu'un like à la pochette ; rejeter
+      après 15 s d'écoute est un vrai rejet, rejeter en 2 s un simple passage. */
+  const decide = useCallback(
+    (track: Track, bucket: Bucket, listenSeconds = 0) => {
+      let delta: number;
+      if (bucket === "liked") delta = listenSeconds >= 10 ? 3 : 2;
+      else if (bucket === "later") delta = 1;
+      else delta = listenSeconds >= 15 ? -3 : listenSeconds < 2 ? -1 : -2;
+
+      setState(prev => {
+        const next = withoutId(prev, track.id);
+        return {
+          ...next,
+          [bucket]: [...next[bucket], track.id],
+          swipes: prev.swipes + 1,
+          genreScores: addScores(decayScores(prev.genreScores), track.genres, delta),
+          artistScores: addScores(decayScores(prev.artistScores), [track.artist], delta),
+          freshId: prev.freshId === track.id ? null : prev.freshId,
+          lastDecision: {
+            id: track.id,
+            bucket,
+            genres: track.genres,
+            artist: track.artist,
+            delta,
+          },
+          savedDeezer: track.deezer
+            ? { ...prev.savedDeezer, [track.id]: track }
+            : prev.savedDeezer,
+        };
+      });
+    },
+    []
+  );
 
   /** Annule le dernier swipe : la carte revient en tête du deck */
   const undoLastDecision = useCallback(() => {
     setState(prev => {
       const last = prev.lastDecision;
       if (!last) return prev;
-      const delta = last.bucket === "liked" ? 2 : last.bucket === "later" ? 1 : -2;
+      const delta =
+        last.delta ?? (last.bucket === "liked" ? 2 : last.bucket === "later" ? 1 : -2);
       return {
         ...withoutId(prev, last.id),
         swipes: Math.max(0, prev.swipes - 1),
         genreScores: addScores(prev.genreScores, last.genres, -delta),
+        artistScores: last.artist
+          ? addScores(prev.artistScores, [last.artist], -delta)
+          : prev.artistScores,
         freshId: last.id,
         lastDecision: null,
       };
@@ -253,11 +290,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const wasLiked = prev.liked.includes(track.id);
       const next = withoutId(prev, track.id);
       return wasLiked
-        ? { ...next, genreScores: addScores(prev.genreScores, track.genres, -2) }
+        ? {
+            ...next,
+            genreScores: addScores(prev.genreScores, track.genres, -2),
+            artistScores: addScores(prev.artistScores, [track.artist], -2),
+          }
         : {
             ...next,
             liked: [...next.liked, track.id],
             genreScores: addScores(prev.genreScores, track.genres, 2),
+            artistScores: addScores(prev.artistScores, [track.artist], 2),
             savedDeezer: track.deezer
               ? { ...prev.savedDeezer, [track.id]: track }
               : prev.savedDeezer,
@@ -272,6 +314,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         ...next,
         liked: [...next.liked, track.id],
         genreScores: addScores(prev.genreScores, track.genres, 2),
+        artistScores: addScores(prev.artistScores, [track.artist], 2),
         savedDeezer: track.deezer
           ? { ...prev.savedDeezer, [track.id]: track }
           : prev.savedDeezer,

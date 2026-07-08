@@ -14,7 +14,6 @@ import { EventSubscription } from "expo-modules-core";
 import { useSyncExternalStore } from "react";
 import { PREVIEW_SECONDS, Track } from "./catalog";
 import { refreshPreviewUrl } from "./deezer";
-import { PREVIEWS } from "./previews";
 
 export interface PlaybackSnapshot {
   playingId: string | null;
@@ -84,7 +83,7 @@ async function sourceFor(track: Track): Promise<AudioSource | null> {
     return { uri: url };
   }
   if (track.custom && track.audioUri) return { uri: track.audioUri };
-  return PREVIEWS[track.id] ?? null;
+  return null;
 }
 
 function removeStatusSubscription() {
@@ -181,6 +180,12 @@ export function togglePlayback(track: Track) {
 
 export function isPlaying(id: string) {
   return playingId === id;
+}
+
+/** Secondes écoutées du titre en cours (0 si pas en lecture) —
+    utilisé par l'algo pour pondérer le signal d'un swipe. */
+export function getCurrentElapsed(trackId: string): number {
+  return playingId === trackId ? snapshot.elapsed : 0;
 }
 
 /* --- Mini-player (bibliothèque, recherche, profil, espace artiste) --- */

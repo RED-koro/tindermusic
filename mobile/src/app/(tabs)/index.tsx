@@ -23,6 +23,7 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   getAutoplay,
+  getCurrentElapsed,
   hideMini,
   playTrack,
   setAutoplay,
@@ -32,7 +33,11 @@ import {
 } from "../../lib/audio";
 import { hashCode, PREVIEW_SECONDS, Track } from "../../lib/catalog";
 import { CoverArt } from "../../lib/covers";
-import { fetchDiscoveryFeed } from "../../lib/deezer";
+import {
+  ArtistSeed,
+  fetchDiscoveryFeed,
+  fetchFeaturedTracks,
+} from "../../lib/deezer";
 import { Bucket, useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
@@ -67,7 +72,22 @@ export default function DiscoverScreen() {
     async (perChart = 20) => {
       setLoadingFeed(true);
       try {
-        const tracks = await fetchDiscoveryFeed(state.genreScores, perChart);
+        // graines de reco : les 2 derniers artistes Deezer likés
+        // (hors artistes maison, déjà mis en avant)
+        const seeds: ArtistSeed[] = [...state.liked]
+          .reverse()
+          .map(id => state.savedDeezer[id])
+          .filter((t): t is Track => !!t && !!t.artistId && !t.featured)
+          .slice(0, 2)
+          .map(t => ({ artistId: t.artistId as number, genres: t.genres }));
+
+        const [featured, discovery] = await Promise.all([
+          fetchFeaturedTracks().catch(() => [] as Track[]),
+          fetchDiscoveryFeed(state.genreScores, seeds, perChart).catch(
+            () => [] as Track[]
+          ),
+        ]);
+        const tracks = [...featured, ...discovery];
         if (tracks.length) {
           registerTracks(tracks);
           setFeed(prev => {
@@ -75,10 +95,10 @@ export default function DiscoverScreen() {
             return [...prev, ...tracks.filter(t => !seen.has(t.id))];
           });
         } else {
-          toast("Deezer inaccessible — catalogue local uniquement");
+          toast("Deezer inaccessible — vérifie ta connexion");
         }
       } catch {
-        toast("Deezer inaccessible — catalogue local uniquement");
+        toast("Deezer inaccessible — vérifie ta connexion");
       } finally {
         setLoadingFeed(false);
       }
@@ -103,6 +123,7 @@ export default function DiscoverScreen() {
         t,
         s:
           (state.freshId === t.id ? 1000 : 0) +
+          (t.featured ? 2.5 : 0) + // artistes maison mis en avant
           affinity(t) +
           ((hashCode(t.id + sessionSeed) % 100) / 100) * 1.5,
       }))
@@ -151,9 +172,11 @@ export default function DiscoverScreen() {
       tx.value = withTiming(dx, { duration: 260 });
       ty.value = withTiming(dy, { duration: 260 });
       setTimeout(() => {
+        // temps d'écoute avant le swipe : pondère le signal de l'algo
+        const listened = getCurrentElapsed(track.id);
         stopPlayback();
         if (getAutoplay()) pendingPlay.current = true;
-        decide(track, bucket);
+        decide(track, bucket, listened);
         if (bucket === "liked") toast(`❤ « ${track.title} » ajouté à ta bibliothèque`);
         else if (bucket === "later") toast(`« ${track.title} » à réécouter plus tard`);
         else toast(`On te proposera moins de ${track.genres[0]}`);
@@ -276,7 +299,7 @@ export default function DiscoverScreen() {
               <Text style={styles.restartText}>Recharger des découvertes</Text>
             </Pressable>
             <Pressable style={styles.restartAlt} onPress={resetBuckets}>
-              <Text style={{ color: C.muted, fontSize: 13.5 }}>Réécouter le catalogue</Text>
+              <Text style={{ color: C.muted, fontSize: 13.5 }}>Tout re-swiper</Text>
             </Pressable>
           </View>
         )}
@@ -411,10 +434,10 @@ function InfoBack({
       <KV label="Genres" value={track.genres.join(", ")} />
       {track.custom ? (
         <KV label="Source" value="Publié par l'artiste" />
-      ) : track.deezer ? (
-        <KV label="Source" value="Deezer" />
+      ) : track.featured ? (
+        <KV label="Source" value="Sélection Tune ✦" />
       ) : (
-        <KV label="Tempo" value={`${track.bpm} BPM`} />
+        <KV label="Source" value="Deezer" />
       )}
       <KV label="Extrait" value={`${PREVIEW_SECONDS} secondes`} />
       <Text style={styles.backText}>
@@ -422,9 +445,9 @@ function InfoBack({
           ? track.description
             ? `« ${track.description} »  — ${track.artist}`
             : `Titre publié directement par ${track.artist} sur Tune. Si tu l'aimes, il rejoint ta bibliothèque et soutient l'artiste.`
-          : track.deezer
-            ? `Découvert dans les charts ${track.genres[0]}. Extrait officiel de 30 secondes fourni par Deezer.`
-            : `Artiste émergent proposé selon tes goûts. Si tu aimes ce titre, il rejoint ta bibliothèque et l'algorithme te proposera plus de ${track.genres[0]}.`}
+          : track.featured
+            ? `${track.artist} fait partie des artistes mis en avant par Tune. Si tu aimes ce titre, il rejoint ta bibliothèque et soutient l'artiste.`
+            : `Proposé selon tes goûts (${track.genres[0]}). Extrait officiel de 30 secondes fourni par Deezer.`}
       </Text>
       <View style={styles.backFooter}>
         {track.custom && onReport && (
