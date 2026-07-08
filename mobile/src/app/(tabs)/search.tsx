@@ -1,19 +1,31 @@
-/* Rechercher — titre, artiste ou genre */
+/* Rechercher — titre, artiste ou genre, dans tout le catalogue Deezer + local */
 
-import React, { useMemo, useState } from "react";
-import { FlatList, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MiniPlayer } from "../../components/MiniPlayer";
 import { TrackRow } from "../../components/TrackRow";
+import { Track } from "../../lib/catalog";
+import { searchDeezer } from "../../lib/deezer";
 import { useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
-  const { allTracks, bucketOf, toggleLiked } = useStore();
+  const [deezerResults, setDeezerResults] = useState<Track[]>([]);
+  const [searching, setSearching] = useState(false);
+  const { allTracks, bucketOf, toggleLiked, registerTracks } = useStore();
+  const requestId = useRef(0);
 
-  const results = useMemo(() => {
+  const localResults = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     return allTracks.filter(
@@ -23,6 +35,36 @@ export default function SearchScreen() {
         t.genres.some(g => g.toLowerCase().includes(q))
     );
   }, [query, allTracks]);
+
+  // recherche Deezer avec debounce de 450 ms
+  useEffect(() => {
+    const q = query.trim();
+    const id = ++requestId.current;
+    if (q.length < 2) {
+      setDeezerResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const found = await searchDeezer(q);
+        if (id !== requestId.current) return; // requête obsolète
+        registerTracks(found);
+        setDeezerResults(found);
+      } catch {
+        if (id === requestId.current) setDeezerResults([]);
+      } finally {
+        if (id === requestId.current) setSearching(false);
+      }
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [query, registerTracks]);
+
+  const results = useMemo(() => {
+    const seen = new Set(localResults.map(t => t.id));
+    return [...localResults, ...deezerResults.filter(t => !seen.has(t.id))];
+  }, [localResults, deezerResults]);
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
@@ -39,7 +81,13 @@ export default function SearchScreen() {
       </View>
 
       {query.trim() === "" ? (
-        <Text style={styles.empty}>Cherche un titre, un artiste ou un genre.</Text>
+        <Text style={styles.empty}>
+          Cherche un titre ou un artiste{"\n"}dans tout le catalogue Deezer.
+        </Text>
+      ) : searching && results.length === 0 ? (
+        <View style={{ marginTop: 60, alignItems: "center" }}>
+          <ActivityIndicator color={C.accent} />
+        </View>
       ) : results.length === 0 ? (
         <Text style={styles.empty}>Aucun résultat pour « {query} »</Text>
       ) : (
@@ -54,6 +102,7 @@ export default function SearchScreen() {
             return (
               <TrackRow
                 track={item}
+                subtitle={item.deezer ? item.album : undefined}
                 actions={[
                   {
                     icon: liked ? "heart" : "heart-outline",

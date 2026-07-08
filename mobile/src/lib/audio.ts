@@ -13,6 +13,7 @@ import {
 import { EventSubscription } from "expo-modules-core";
 import { useSyncExternalStore } from "react";
 import { PREVIEW_SECONDS, Track } from "./catalog";
+import { refreshPreviewUrl } from "./deezer";
 import { PREVIEWS } from "./previews";
 
 export interface PlaybackSnapshot {
@@ -68,7 +69,20 @@ function emit() {
   subscribers.forEach(fn => fn());
 }
 
-function sourceFor(track: Track): AudioSource | null {
+// URLs d'extraits Deezer déjà rafraîchies pendant cette session
+const freshPreviews = new Map<string, string>();
+
+async function sourceFor(track: Track): Promise<AudioSource | null> {
+  if (track.deezer) {
+    // les URLs d'extraits Deezer expirent : on prend une URL fraîche
+    const cached = freshPreviews.get(track.id);
+    if (cached) return { uri: cached };
+    const fresh = await refreshPreviewUrl(track.id);
+    const url = fresh || track.previewUrl;
+    if (!url) return null;
+    freshPreviews.set(track.id, url);
+    return { uri: url };
+  }
   if (track.custom && track.audioUri) return { uri: track.audioUri };
   return PREVIEWS[track.id] ?? null;
 }
@@ -112,9 +126,14 @@ function handleStatus(status: AudioStatus) {
   emit();
 }
 
+let playRequestId = 0;
+
 export async function playTrack(track: Track) {
-  const source = sourceFor(track);
+  const requestId = ++playRequestId;
   stopPlayback();
+  const source = await sourceFor(track);
+  // une autre lecture a été demandée pendant le rafraîchissement de l'URL
+  if (requestId !== playRequestId) return;
   if (source == null) return;
 
   try {

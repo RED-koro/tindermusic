@@ -52,6 +52,8 @@ interface TuneState {
   genreScores: Record<string, number>;
   swipes: number;
   customs: CustomTrackMeta[];
+  /** Métadonnées des titres Deezer classés (bibliothèque persistante) */
+  savedDeezer: Record<string, Track>;
   /** Dernier titre publié : mis en tête du deck Découvrir */
   freshId: string | null;
   /** Dernier swipe, pour pouvoir l'annuler */
@@ -65,6 +67,7 @@ const EMPTY: TuneState = {
   genreScores: {},
   swipes: 0,
   customs: [],
+  savedDeezer: {},
   freshId: null,
   lastDecision: null,
 };
@@ -98,6 +101,8 @@ interface StoreValue {
   affinity: (track: Track) => number;
   decide: (track: Track, bucket: Bucket) => void;
   undoLastDecision: () => void;
+  /** Rend des titres Deezer (flux, recherche) résolubles via byId le temps de la session */
+  registerTracks: (tracks: Track[]) => void;
   /** Retire le titre de tous les buckets (retour dans Découvrir) */
   restore: (id: string) => void;
   /** Bascule aimé <-> non classé (recherche, bibliothèque) */
@@ -135,6 +140,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<TuneState>(EMPTY);
   const [hydrated, setHydrated] = useState(false);
   const skipPersist = useRef(true);
+  // titres Deezer vus pendant la session (flux Découvrir, recherche)
+  const [sessionTracks, setSessionTracks] = useState<Record<string, Track>>({});
+
+  const registerTracks = useCallback((tracks: Track[]) => {
+    setSessionTracks(prev => {
+      const fresh = tracks.filter(t => !prev[t.id]);
+      if (fresh.length === 0) return prev;
+      const next = { ...prev };
+      for (const t of fresh) next[t.id] = t;
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -169,8 +186,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [state.customs]
   );
   const byId = useMemo(
-    () => Object.fromEntries(allTracks.map(t => [t.id, t])),
-    [allTracks]
+    () => ({
+      ...sessionTracks,
+      ...state.savedDeezer,
+      ...Object.fromEntries(allTracks.map(t => [t.id, t])),
+    }),
+    [allTracks, sessionTracks, state.savedDeezer]
   );
 
   const bucketOf = useCallback(
@@ -200,6 +221,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         genreScores: addScores(prev.genreScores, track.genres, delta),
         freshId: prev.freshId === track.id ? null : prev.freshId,
         lastDecision: { id: track.id, bucket, genres: track.genres },
+        savedDeezer: track.deezer
+          ? { ...prev.savedDeezer, [track.id]: track }
+          : prev.savedDeezer,
       };
     });
   }, []);
@@ -234,6 +258,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             ...next,
             liked: [...next.liked, track.id],
             genreScores: addScores(prev.genreScores, track.genres, 2),
+            savedDeezer: track.deezer
+              ? { ...prev.savedDeezer, [track.id]: track }
+              : prev.savedDeezer,
           };
     });
   }, []);
@@ -245,6 +272,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         ...next,
         liked: [...next.liked, track.id],
         genreScores: addScores(prev.genreScores, track.genres, 2),
+        savedDeezer: track.deezer
+          ? { ...prev.savedDeezer, [track.id]: track }
+          : prev.savedDeezer,
       };
     });
   }, []);
@@ -317,6 +347,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       affinity,
       decide,
       undoLastDecision,
+      registerTracks,
       restore,
       toggleLiked,
       moveToLiked,
@@ -327,8 +358,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       resetData,
     }),
     [state, hydrated, allTracks, byId, bucketOf, affinity, decide, undoLastDecision,
-     restore, toggleLiked, moveToLiked, publish, removeCustom, reportTrack,
-     resetBuckets, resetData]
+     registerTracks, restore, toggleLiked, moveToLiked, publish, removeCustom,
+     reportTrack, resetBuckets, resetData]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

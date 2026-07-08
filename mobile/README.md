@@ -17,6 +17,22 @@ npx expo start --web    # aperçu navigateur
 npx tsc --noEmit        # vérification TypeScript
 ```
 
+## Vraie musique (Deezer)
+
+Le deck Découvrir et la recherche sont branchés sur l'**API publique Deezer**
+(gratuite, sans clé) : extraits officiels de 30 s, vraies pochettes, charts par
+genre. `src/lib/deezer.ts` :
+
+- le flux Découvrir mélange les tendances globales et les charts des genres
+  préférés de l'utilisateur (l'algo pilote ce qu'on va chercher) ;
+- la recherche interroge tout le catalogue Deezer (debounce 450 ms) ;
+- les URLs d'extraits expirent : elles sont rafraîchies au moment de la lecture ;
+- les métadonnées des titres classés sont persistées (`savedDeezer`) pour que la
+  bibliothèque survive au redémarrage ;
+- sans réseau, l'app retombe sur le catalogue local embarqué.
+
+Sur web, l'API Deezer n'envoie pas de CORS → JSONP (téléphone : fetch direct).
+
 ## Architecture
 
 - `src/app/` — écrans (expo-router) : `(tabs)/` Découvrir, Bibliothèque, Rechercher, Profil + `artist.tsx` (Espace artiste)

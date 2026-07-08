@@ -4,7 +4,15 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useAnimatedStyle,
@@ -24,6 +32,7 @@ import {
 } from "../../lib/audio";
 import { hashCode, PREVIEW_SECONDS, Track } from "../../lib/catalog";
 import { CoverArt } from "../../lib/covers";
+import { fetchDiscoveryFeed } from "../../lib/deezer";
 import { Bucket, useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
@@ -44,14 +53,51 @@ function buzz(bucket: Bucket) {
 
 export default function DiscoverScreen() {
   const {
-    state, allTracks, bucketOf, affinity, decide, undoLastDecision,
-    reportTrack, resetBuckets,
+    state, hydrated, allTracks, bucketOf, affinity, decide, undoLastDecision,
+    registerTracks, reportTrack, resetBuckets,
   } = useStore();
   const playback = usePlayback();
 
+  // Flux Deezer : vraie musique, chargée selon les genres préférés de l'user
+  const [feed, setFeed] = useState<Track[]>([]);
+  const [loadingFeed, setLoadingFeed] = useState(false);
+  const feedRequested = useRef(false);
+
+  const loadFeed = useCallback(
+    async (perChart = 20) => {
+      setLoadingFeed(true);
+      try {
+        const tracks = await fetchDiscoveryFeed(state.genreScores, perChart);
+        if (tracks.length) {
+          registerTracks(tracks);
+          setFeed(prev => {
+            const seen = new Set(prev.map(t => t.id));
+            return [...prev, ...tracks.filter(t => !seen.has(t.id))];
+          });
+        } else {
+          toast("Deezer inaccessible — catalogue local uniquement");
+        }
+      } catch {
+        toast("Deezer inaccessible — catalogue local uniquement");
+      } finally {
+        setLoadingFeed(false);
+      }
+    },
+    // volontairement figé sur les scores du chargement (pas de refetch à chaque swipe)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [registerTracks]
+  );
+
+  useEffect(() => {
+    if (hydrated && !feedRequested.current) {
+      feedRequested.current = true;
+      loadFeed();
+    }
+  }, [hydrated, loadFeed]);
+
   // L'algo v1 : tri par affinité de genres + un peu de hasard stable
   const deck = useMemo(() => {
-    return allTracks
+    return [...allTracks, ...feed]
       .filter(t => !bucketOf(t.id))
       .map(t => ({
         t,
@@ -62,7 +108,7 @@ export default function DiscoverScreen() {
       }))
       .sort((a, b) => b.s - a.s)
       .map(x => x.t);
-  }, [allTracks, bucketOf, affinity, state.freshId]);
+  }, [allTracks, feed, bucketOf, affinity, state.freshId]);
 
   const top: Track | undefined = deck[0];
   const under: Track | undefined = deck[1];
@@ -213,14 +259,24 @@ export default function DiscoverScreen() {
       </View>
 
       <View style={styles.deck}>
-        {!top && (
+        {!top && loadingFeed && (
+          <View style={styles.empty}>
+            <ActivityIndicator size="large" color={C.accent} />
+            <Text style={styles.emptyText}>Chargement des découvertes…</Text>
+          </View>
+        )}
+
+        {!top && !loadingFeed && (
           <View style={styles.empty}>
             <Text style={{ fontSize: 44 }}>🎧</Text>
             <Text style={styles.emptyText}>
-              Tu as tout écouté !{"\n"}Reviens plus tard pour de nouvelles découvertes.
+              Tu as tout écouté !{"\n"}Recharge des découvertes ou réécoute le catalogue.
             </Text>
-            <Pressable style={styles.restartBtn} onPress={resetBuckets}>
-              <Text style={styles.restartText}>Réécouter le catalogue</Text>
+            <Pressable style={styles.restartBtn} onPress={() => loadFeed(40)}>
+              <Text style={styles.restartText}>Recharger des découvertes</Text>
+            </Pressable>
+            <Pressable style={styles.restartAlt} onPress={resetBuckets}>
+              <Text style={{ color: C.muted, fontSize: 13.5 }}>Réécouter le catalogue</Text>
             </Pressable>
           </View>
         )}
@@ -351,9 +407,12 @@ function InfoBack({
     <View style={styles.back}>
       <Text style={styles.backTitle}>{track.title}</Text>
       <KV label="Artiste" value={track.artist} />
+      {track.album ? <KV label="Album" value={track.album} /> : null}
       <KV label="Genres" value={track.genres.join(", ")} />
       {track.custom ? (
         <KV label="Source" value="Publié par l'artiste" />
+      ) : track.deezer ? (
+        <KV label="Source" value="Deezer" />
       ) : (
         <KV label="Tempo" value={`${track.bpm} BPM`} />
       )}
@@ -363,7 +422,9 @@ function InfoBack({
           ? track.description
             ? `« ${track.description} »  — ${track.artist}`
             : `Titre publié directement par ${track.artist} sur Tune. Si tu l'aimes, il rejoint ta bibliothèque et soutient l'artiste.`
-          : `Artiste émergent proposé selon tes goûts. Si tu aimes ce titre, il rejoint ta bibliothèque et l'algorithme te proposera plus de ${track.genres[0]}.`}
+          : track.deezer
+            ? `Découvert dans les charts ${track.genres[0]}. Extrait officiel de 30 secondes fourni par Deezer.`
+            : `Artiste émergent proposé selon tes goûts. Si tu aimes ce titre, il rejoint ta bibliothèque et l'algorithme te proposera plus de ${track.genres[0]}.`}
       </Text>
       <View style={styles.backFooter}>
         {track.custom && onReport && (
@@ -557,4 +618,5 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   restartText: { color: "#fff", fontWeight: "700" },
+  restartAlt: { paddingHorizontal: 20, paddingVertical: 8 },
 });

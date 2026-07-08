@@ -41,6 +41,10 @@ export interface Track {
   previewStart?: number;
   audioUri?: string;
   coverUri?: string | null;
+  /** Titre venant du catalogue Deezer (extraits officiels 30 s) */
+  deezer?: boolean;
+  album?: string;
+  previewUrl?: string;
 }
 
 export function hashCode(str: string): number {
