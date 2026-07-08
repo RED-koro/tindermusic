@@ -104,6 +104,10 @@ export default function ProfileScreen() {
           <Text style={styles.artistBtnText}>🎤 Espace artiste — publier un titre</Text>
         </Pressable>
 
+        <Pressable style={styles.legalBtn} onPress={() => router.push("/legal")}>
+          <Text style={styles.legalText}>À propos, confidentialité & mentions légales</Text>
+        </Pressable>
+
         <Pressable style={styles.resetBtn} onPress={confirmReset}>
           <Text style={styles.resetText}>Réinitialiser mes données</Text>
         </Pressable>
@@ -203,6 +207,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   artistBtnText: { color: C.accent, fontSize: 14.5, fontWeight: "700" },
+  legalBtn: { alignSelf: "center", paddingVertical: 4 },
+  legalText: { color: C.muted, fontSize: 13, textDecorationLine: "underline" },
   resetBtn: {
     alignSelf: "center",
     paddingHorizontal: 24,

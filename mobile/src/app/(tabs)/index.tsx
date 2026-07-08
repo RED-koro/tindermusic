@@ -2,6 +2,7 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as Linking from "expo-linking";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -450,6 +451,21 @@ function InfoBack({
             : `Proposé selon tes goûts (${track.genres[0]}). Extrait officiel de 30 secondes fourni par Deezer.`}
       </Text>
       <View style={styles.backFooter}>
+        {track.deezer && (
+          <Pressable
+            style={styles.reportBtn}
+            onPress={() =>
+              Linking.openURL(
+                `https://www.deezer.com/track/${track.id.replace(/^dz-/, "")}`
+              )
+            }
+          >
+            <Ionicons name="open-outline" size={15} color={C.accent} />
+            <Text style={{ color: C.accent, fontSize: 13.5 }}>
+              Écouter en entier sur Deezer
+            </Text>
+          </Pressable>
+        )}
         {track.custom && onReport && (
           <Pressable testID="btn-report" style={styles.reportBtn} onPress={onReport}>
             <Ionicons name="flag-outline" size={15} color={C.danger} />
