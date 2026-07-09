@@ -38,9 +38,9 @@ export default function LegalScreen() {
             Les extraits musicaux (30 secondes), pochettes d'albums, noms
             d'artistes et classements sont fournis par l'API publique de
             Deezer. Tune n'héberge aucun enregistrement du commerce et ne
-            permet ni téléchargement ni écoute intégrale : pour écouter les
-            titres en entier, rends-toi sur Deezer ou la plateforme de ton
-            choix.
+            permet ni téléchargement ni écoute intégrale : pour écouter un
+            titre en entier, tu choisis ta plateforme (Spotify, Apple Music,
+            YouTube, Deezer…) directement depuis la fiche du morceau.
           </Text>
           <Pressable
             style={styles.linkBtn}

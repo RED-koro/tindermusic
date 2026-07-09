@@ -39,6 +39,7 @@ import {
   fetchDiscoveryFeed,
   fetchFeaturedTracks,
 } from "../../lib/deezer";
+import { listenLinks } from "../../lib/listen";
 import { Bucket, useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
@@ -450,22 +451,24 @@ function InfoBack({
             ? `${track.artist} fait partie des artistes mis en avant par Tune. Si tu aimes ce titre, il rejoint ta bibliothèque et soutient l'artiste.`
             : `Proposé selon tes goûts (${track.genres[0]}). Extrait officiel de 30 secondes fourni par Deezer.`}
       </Text>
+      {!track.custom && (
+        <View style={styles.listenBox}>
+          <Text style={styles.listenLabel}>Écouter en entier sur</Text>
+          <View style={styles.listenRow}>
+            {listenLinks(track).map(l => (
+              <Pressable
+                key={l.id}
+                style={styles.listenChip}
+                onPress={() => Linking.openURL(l.url)}
+              >
+                <Ionicons name={l.icon as never} size={15} color={C.text} />
+                <Text style={styles.listenChipText}>{l.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
       <View style={styles.backFooter}>
-        {track.deezer && (
-          <Pressable
-            style={styles.reportBtn}
-            onPress={() =>
-              Linking.openURL(
-                `https://www.deezer.com/track/${track.id.replace(/^dz-/, "")}`
-              )
-            }
-          >
-            <Ionicons name="open-outline" size={15} color={C.accent} />
-            <Text style={{ color: C.accent, fontSize: 13.5 }}>
-              Écouter en entier sur Deezer
-            </Text>
-          </Pressable>
-        )}
         {track.custom && onReport && (
           <Pressable testID="btn-report" style={styles.reportBtn} onPress={onReport}>
             <Ionicons name="flag-outline" size={15} color={C.danger} />
@@ -588,6 +591,21 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   backText: { color: C.muted, fontSize: 14, lineHeight: 21, marginTop: 4 },
+  listenBox: { marginTop: 6, gap: 8 },
+  listenLabel: { color: C.muted, fontSize: 12.5 },
+  listenRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  listenChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.line,
+    backgroundColor: C.card2,
+  },
+  listenChipText: { color: C.text, fontSize: 13 },
   backFooter: { marginTop: "auto", alignItems: "center", gap: 6 },
   reportBtn: {
     flexDirection: "row",
