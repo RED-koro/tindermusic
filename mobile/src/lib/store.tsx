@@ -63,6 +63,8 @@ interface TuneState {
   freshId: string | null;
   /** Dernier swipe, pour pouvoir l'annuler */
   lastDecision: LastDecision | null;
+  /** Onboarding "choisis tes genres" terminé (amorce l'algo au 1er lancement) */
+  onboarded: boolean;
 }
 
 const EMPTY: TuneState = {
@@ -76,6 +78,7 @@ const EMPTY: TuneState = {
   savedDeezer: {},
   freshId: null,
   lastDecision: null,
+  onboarded: false,
 };
 
 const STORAGE_KEY = "tune-state-v1";
@@ -117,6 +120,7 @@ interface StoreValue {
   publish: (meta: CustomTrackMeta) => void;
   removeCustom: (id: string) => void;
   reportTrack: (id: string, reason?: string) => void;
+  completeOnboarding: (genres: string[]) => void;
   resetBuckets: () => void;
   resetData: () => void;
 }
@@ -179,7 +183,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const customs: CustomTrackMeta[] = (parsed.customs || []).map(
           (c: Partial<CustomTrackMeta>) => ({ status: "approved", reports: 0, ...c })
         );
-        setState({ ...EMPTY, ...parsed, customs });
+        // migration : les utilisateurs qui ont déjà swipé passent l'onboarding
+        const onboarded =
+          parsed.onboarded ?? ((parsed.swipes || 0) > 0 || (parsed.liked || []).length > 0);
+        setState({ ...EMPTY, ...parsed, customs, onboarded });
       })
       .catch(() => {})
       .finally(() => setHydrated(true));
@@ -372,6 +379,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  /** Fin de l'onboarding : les genres choisis amorcent l'algo (+3 chacun) */
+  const completeOnboarding = useCallback((genres: string[]) => {
+    setState(prev => ({
+      ...prev,
+      onboarded: true,
+      genreScores: addScores(prev.genreScores, genres, 3),
+    }));
+  }, []);
+
   const resetBuckets = useCallback(() => {
     setState(prev => ({ ...prev, liked: [], later: [], disliked: [] }));
   }, []);
@@ -397,12 +413,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       publish,
       removeCustom,
       reportTrack,
+      completeOnboarding,
       resetBuckets,
       resetData,
     }),
     [state, hydrated, allTracks, byId, bucketOf, affinity, decide, undoLastDecision,
      registerTracks, restore, toggleLiked, moveToLiked, publish, removeCustom,
-     reportTrack, resetBuckets, resetData]
+     reportTrack, completeOnboarding, resetBuckets, resetData]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

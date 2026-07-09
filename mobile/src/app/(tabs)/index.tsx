@@ -36,6 +36,7 @@ import { hashCode, PREVIEW_SECONDS, Track } from "../../lib/catalog";
 import { CoverArt } from "../../lib/covers";
 import {
   ArtistSeed,
+  DEEZER_GENRES,
   fetchDiscoveryFeed,
   fetchFeaturedTracks,
 } from "../../lib/deezer";
@@ -61,9 +62,13 @@ function buzz(bucket: Bucket) {
 export default function DiscoverScreen() {
   const {
     state, hydrated, allTracks, bucketOf, affinity, decide, undoLastDecision,
-    registerTracks, reportTrack, resetBuckets,
+    registerTracks, reportTrack, completeOnboarding, resetBuckets,
   } = useStore();
   const playback = usePlayback();
+
+  // toujours l'état à jour dans loadFeed (évite les fermetures obsolètes)
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   // Flux Deezer : vraie musique, chargée selon les genres préférés de l'user
   const [feed, setFeed] = useState<Track[]>([]);
@@ -74,18 +79,19 @@ export default function DiscoverScreen() {
     async (perChart = 20) => {
       setLoadingFeed(true);
       try {
+        const s = stateRef.current;
         // graines de reco : les 2 derniers artistes Deezer likés
         // (hors artistes maison, déjà mis en avant)
-        const seeds: ArtistSeed[] = [...state.liked]
+        const seeds: ArtistSeed[] = [...s.liked]
           .reverse()
-          .map(id => state.savedDeezer[id])
+          .map(id => s.savedDeezer[id])
           .filter((t): t is Track => !!t && !!t.artistId && !t.featured)
           .slice(0, 2)
           .map(t => ({ artistId: t.artistId as number, genres: t.genres }));
 
         const [featured, discovery] = await Promise.all([
           fetchFeaturedTracks().catch(() => [] as Track[]),
-          fetchDiscoveryFeed(state.genreScores, seeds, perChart).catch(
+          fetchDiscoveryFeed(s.genreScores, seeds, perChart).catch(
             () => [] as Track[]
           ),
         ]);
@@ -105,17 +111,16 @@ export default function DiscoverScreen() {
         setLoadingFeed(false);
       }
     },
-    // volontairement figé sur les scores du chargement (pas de refetch à chaque swipe)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [registerTracks]
   );
 
+  // le flux ne se charge qu'après l'onboarding (pour profiter des genres choisis)
   useEffect(() => {
-    if (hydrated && !feedRequested.current) {
+    if (hydrated && state.onboarded && !feedRequested.current) {
       feedRequested.current = true;
       loadFeed();
     }
-  }, [hydrated, loadFeed]);
+  }, [hydrated, state.onboarded, loadFeed]);
 
   // L'algo v1 : tri par affinité de genres + un peu de hasard stable
   const deck = useMemo(() => {
@@ -260,6 +265,11 @@ export default function DiscoverScreen() {
     }
   }, [deck, reportTrack]);
 
+  // premier lancement : on amorce l'algo avec les goûts de l'utilisateur
+  if (hydrated && !state.onboarded) {
+    return <Onboarding onDone={completeOnboarding} />;
+  }
+
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.topbar}>
@@ -361,6 +371,57 @@ export default function DiscoverScreen() {
         </Pressable>
         <Pressable testID="btn-like" style={[styles.actionBtn, styles.big]} onPress={() => flyAndDecide("liked")}>
           <Ionicons name="heart" size={28} color={C.accent} />
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function Onboarding({ onDone }: { onDone: (genres: string[]) => void }) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const toggle = (label: string) =>
+    setSelected(prev =>
+      prev.includes(label) ? prev.filter(g => g !== label) : [...prev, label]
+    );
+
+  return (
+    <SafeAreaView style={styles.screen} edges={["top"]}>
+      <View style={styles.obWrap}>
+        <Text style={{ fontSize: 44 }}>🎧</Text>
+        <Text style={styles.obTitle}>Bienvenue sur Tune</Text>
+        <Text style={styles.obSub}>
+          Choisis les genres que tu aimes (3 ou plus, c'est mieux) : ton premier
+          deck sera déjà à ton goût.
+        </Text>
+        <View style={styles.obChips}>
+          {DEEZER_GENRES.map(g => {
+            const on = selected.includes(g.label);
+            return (
+              <Pressable
+                key={g.id}
+                testID={`ob-${g.id}`}
+                style={[styles.obChip, on && styles.obChipOn]}
+                onPress={() => toggle(g.label)}
+              >
+                <Text style={[styles.obChipText, on && { color: "#fff" }]}>
+                  {g.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Pressable
+          testID="ob-done"
+          style={[styles.obBtn, selected.length === 0 && { opacity: 0.4 }]}
+          disabled={selected.length === 0}
+          onPress={() => onDone(selected)}
+        >
+          <Text style={styles.obBtnText}>
+            C'est parti{selected.length > 0 ? ` (${selected.length})` : ""}
+          </Text>
+        </Pressable>
+        <Pressable testID="ob-skip" onPress={() => onDone([])} hitSlop={8}>
+          <Text style={styles.obSkip}>Passer, je découvrirai en swipant</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -676,4 +737,39 @@ const styles = StyleSheet.create({
   },
   restartText: { color: "#fff", fontWeight: "700" },
   restartAlt: { paddingHorizontal: 20, paddingVertical: 8 },
+  obWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+    gap: 16,
+  },
+  obTitle: { color: C.text, fontSize: 26, fontWeight: "800" },
+  obSub: { color: C.muted, fontSize: 14.5, textAlign: "center", lineHeight: 21 },
+  obChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 10,
+    marginVertical: 10,
+  },
+  obChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: C.line,
+    backgroundColor: C.card,
+  },
+  obChipOn: { backgroundColor: C.accent2, borderColor: C.accent2 },
+  obChipText: { color: C.text, fontSize: 14 },
+  obBtn: {
+    backgroundColor: C.accent2,
+    paddingHorizontal: 34,
+    paddingVertical: 14,
+    borderRadius: 24,
+    marginTop: 6,
+  },
+  obBtnText: { color: "#fff", fontSize: 15.5, fontWeight: "700" },
+  obSkip: { color: C.muted, fontSize: 13, textDecorationLine: "underline" },
 });
