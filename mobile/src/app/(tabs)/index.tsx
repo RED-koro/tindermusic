@@ -386,9 +386,6 @@ export default function DiscoverScreen() {
         <Pressable testID="btn-later" style={[styles.actionBtn, styles.small]} onPress={() => flyAndDecide("later")}>
           <Ionicons name="time-outline" size={20} color={C.muted} />
         </Pressable>
-        <Pressable testID="btn-info" style={[styles.actionBtn, styles.small]} onPress={() => setShowInfo(v => !v)}>
-          <Text style={styles.infoGlyph}>i</Text>
-        </Pressable>
         <Pressable testID="btn-like" style={[styles.actionBtn, styles.big]} onPress={() => flyAndDecide("liked")}>
           <Ionicons name="heart" size={28} color={C.accent} />
         </Pressable>
@@ -776,13 +773,6 @@ const styles = StyleSheet.create({
   },
   big: { width: 66, height: 66, borderRadius: 33 },
   small: { width: 48, height: 48, borderRadius: 24 },
-  infoGlyph: {
-    color: C.muted,
-    fontSize: 18,
-    fontStyle: "italic",
-    fontWeight: "600",
-    fontFamily: "Georgia",
-  },
   empty: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
