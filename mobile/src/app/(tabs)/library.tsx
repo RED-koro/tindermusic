@@ -16,9 +16,9 @@ const TABS: { bucket: Bucket; label: string }[] = [
 ];
 
 const EMPTY_TEXT: Record<Bucket, string> = {
-  liked: "Aucun titre aimé pour l'instant.\nSwipe à droite dans Découvrir ❤",
-  later: "Rien à revoir.\nSwipe vers le haut pour garder un titre de côté ⏱",
-  disliked: "Aucun titre écarté.\nSwipe à gauche pour passer un titre ✕",
+  liked: "Encore rien par ici.\nSwipe à droite sur ce qui te touche, ça arrive vite.",
+  later: "Rien en attente.\nSwipe vers le haut pour garder un titre au chaud.",
+  disliked: "Personne au placard.\nÇa viendra, fais-toi confiance.",
 };
 
 export default function LibraryScreen() {
@@ -69,7 +69,7 @@ export default function LibraryScreen() {
                       color: C.accent,
                       onPress: () => {
                         toggleLiked(item);
-                        toast(`« ${item.title} » retiré des aimés`);
+                        toast(`« ${item.title} » sort de la collec'.`);
                       },
                     }
                   : {
@@ -77,14 +77,14 @@ export default function LibraryScreen() {
                       color: C.muted,
                       onPress: () => {
                         moveToLiked(item);
-                        toast(`❤ « ${item.title} » déplacé vers Aimés`);
+                        toast(`« ${item.title} » passe dans les aimés. Logique.`);
                       },
                     },
                 {
                   icon: "refresh-outline",
                   onPress: () => {
                     restore(item.id);
-                    toast(`« ${item.title} » remis dans Découvrir`);
+                    toast(`« ${item.title} » retourne dans le deck.`);
                   },
                 },
               ]}

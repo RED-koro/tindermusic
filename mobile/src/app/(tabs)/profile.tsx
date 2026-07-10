@@ -16,6 +16,7 @@ import { MiniPlayer } from "../../components/MiniPlayer";
 import { useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
+import { profileTagline } from "../../lib/voice";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function ProfileScreen() {
           </View>
           <View>
             <Text style={styles.name}>Andy</Text>
-            <Text style={styles.sub}>Découvre de nouveaux artistes en swipant</Text>
+            <Text style={styles.sub}>{profileTagline(state.swipes)}</Text>
           </View>
         </View>
 
@@ -70,7 +71,7 @@ export default function ProfileScreen() {
           <Stat value={state.liked.length} label="Aimés" />
           <Stat
             value={Math.round(state.stats.listenSeconds / 60)}
-            label="Min. écoutées"
+            label="Minutes d'écoute"
           />
         </View>
 

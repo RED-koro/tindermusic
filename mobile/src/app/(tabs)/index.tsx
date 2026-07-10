@@ -42,6 +42,15 @@ import {
 } from "../../lib/deezer";
 import { listenLinks } from "../../lib/listen";
 import { shareTrack } from "../../lib/share";
+import {
+  deckHint,
+  emptyDeckLine,
+  laterToast,
+  likeToast,
+  loadingLine,
+  nopeToast,
+  undoToast,
+} from "../../lib/voice";
 import { Bucket, useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
@@ -145,6 +154,10 @@ export default function DiscoverScreen() {
   const [showInfo, setShowInfo] = useState(false);
   const deciding = useRef(false);
   const pendingPlay = useRef(false);
+  // une astuce différente à chaque ouverture de l'écran
+  const [hint] = useState(deckHint);
+  const [emptyLine] = useState(emptyDeckLine);
+  const [loadLine] = useState(loadingLine);
 
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
@@ -185,9 +198,9 @@ export default function DiscoverScreen() {
         stopPlayback();
         if (getAutoplay()) pendingPlay.current = true;
         decide(track, bucket, listened);
-        if (bucket === "liked") toast(`❤ « ${track.title} » ajouté à ta bibliothèque`);
-        else if (bucket === "later") toast(`« ${track.title} » à réécouter plus tard`);
-        else toast(`On te proposera moins de ${track.genres[0]}`);
+        if (bucket === "liked") toast(likeToast(track.title));
+        else if (bucket === "later") toast(laterToast(track.title));
+        else toast(nopeToast(track.genres[0]));
         deciding.current = false;
       }, 230);
     },
@@ -217,11 +230,15 @@ export default function DiscoverScreen() {
     [flyAndDecide, showInfo, tx, ty]
   );
 
+  // légère inclinaison propre à chaque carte, comme une pile de vinyles
+  const topTilt = top ? ((hashCode(top.id) % 5) - 2) * 0.4 : 0;
+  const underTilt = under ? ((hashCode(under.id) % 5) - 2) * 0.4 : 0;
+
   const cardStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: tx.value },
       { translateY: ty.value },
-      { rotate: `${tx.value / 18}deg` },
+      { rotate: `${topTilt + tx.value / 18}deg` },
     ],
   }));
   const likeStyle = useAnimatedStyle(() => ({
@@ -240,7 +257,11 @@ export default function DiscoverScreen() {
   const underStyle = useAnimatedStyle(() => {
     const p = Math.min((Math.abs(tx.value) + Math.abs(ty.value)) / 130, 1);
     return {
-      transform: [{ translateY: 10 - p * 10 }, { scale: 0.965 + p * 0.035 }],
+      transform: [
+        { translateY: 10 - p * 10 },
+        { scale: 0.965 + p * 0.035 },
+        { rotate: `${underTilt * (1 - p)}deg` },
+      ],
     };
   });
 
@@ -284,7 +305,7 @@ export default function DiscoverScreen() {
             hitSlop={8}
             onPress={() => {
               undoLastDecision();
-              toast("Dernier swipe annulé");
+              toast(undoToast());
             }}
           >
             <Ionicons name="arrow-undo-outline" size={22} color={C.accent} />
@@ -298,18 +319,16 @@ export default function DiscoverScreen() {
         {!top && loadingFeed && (
           <View style={styles.empty}>
             <ActivityIndicator size="large" color={C.accent} />
-            <Text style={styles.emptyText}>Chargement des découvertes…</Text>
+            <Text style={styles.emptyText}>{loadLine}</Text>
           </View>
         )}
 
         {!top && !loadingFeed && (
           <View style={styles.empty}>
-            <Text style={{ fontSize: 44 }}>🎧</Text>
-            <Text style={styles.emptyText}>
-              Tu as tout écouté !{"\n"}Recharge des découvertes ou réécoute le catalogue.
-            </Text>
+            <Text style={{ fontSize: 44 }}>💿</Text>
+            <Text style={styles.emptyText}>{emptyLine}</Text>
             <Pressable style={styles.restartBtn} onPress={() => loadFeed(40)}>
-              <Text style={styles.restartText}>Recharger des découvertes</Text>
+              <Text style={styles.restartText}>Ressers-moi ça</Text>
             </Pressable>
             <Pressable style={styles.restartAlt} onPress={resetBuckets}>
               <Text style={{ color: C.muted, fontSize: 13.5 }}>Tout re-swiper</Text>
@@ -358,7 +377,7 @@ export default function DiscoverScreen() {
         )}
       </View>
 
-      <Text style={styles.hint}>Swipe pour découvrir de nouveaux artistes</Text>
+      <Text style={styles.hint}>{hint}</Text>
 
       <View style={styles.actions}>
         <Pressable testID="btn-nope" style={[styles.actionBtn, styles.big]} onPress={() => flyAndDecide("disliked")}>
@@ -389,10 +408,10 @@ function Onboarding({ onDone }: { onDone: (genres: string[]) => void }) {
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.obWrap}>
         <Text style={{ fontSize: 44 }}>🎧</Text>
-        <Text style={styles.obTitle}>Bienvenue sur Tune</Text>
+        <Text style={styles.obTitle}>C'est quoi, ton son ?</Text>
         <Text style={styles.obSub}>
-          Choisis les genres que tu aimes (3 ou plus, c'est mieux) : ton premier
-          deck sera déjà à ton goût.
+          Coche ce qui te fait vibrer — trois minimum pour bien faire — et ton
+          premier deck sera déjà taillé pour toi.
         </Text>
         <View style={styles.obChips}>
           {DEEZER_GENRES.map(g => {
@@ -418,11 +437,11 @@ function Onboarding({ onDone }: { onDone: (genres: string[]) => void }) {
           onPress={() => onDone(selected)}
         >
           <Text style={styles.obBtnText}>
-            C'est parti{selected.length > 0 ? ` (${selected.length})` : ""}
+            Envoie la musique{selected.length > 0 ? ` (${selected.length})` : ""}
           </Text>
         </Pressable>
         <Pressable testID="ob-skip" onPress={() => onDone([])} hitSlop={8}>
-          <Text style={styles.obSkip}>Passer, je découvrirai en swipant</Text>
+          <Text style={styles.obSkip}>Je préfère me perdre tout seul</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -508,10 +527,10 @@ function InfoBack({
         {track.custom
           ? track.description
             ? `« ${track.description} »  — ${track.artist}`
-            : `Titre publié directement par ${track.artist} sur Tune. Si tu l'aimes, il rejoint ta bibliothèque et soutient l'artiste.`
+            : `${track.artist} a déposé ce titre directement sur Tune. Un like, et tu soutiens la démarche.`
           : track.featured
-            ? `${track.artist} fait partie des artistes mis en avant par Tune. Si tu aimes ce titre, il rejoint ta bibliothèque et soutient l'artiste.`
-            : `Proposé selon tes goûts (${track.genres[0]}). Extrait officiel de 30 secondes fourni par Deezer.`}
+            ? `${track.artist}, c'est la sélection maison. On assume à 100 %.`
+            : `Repéré pour toi dans les charts ${track.genres[0]}. T'as 30 secondes pour trancher.`}
       </Text>
       {!track.custom && (
         <View style={styles.listenBox}>

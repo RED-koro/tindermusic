@@ -33,6 +33,7 @@ import {
 import { customToTrack, CustomTrackMeta, useStore } from "../lib/store";
 import { C } from "../lib/theme";
 import { toast } from "../lib/toast";
+import { publishToast } from "../lib/voice";
 
 const MAX_AUDIO_BYTES = 150 * 1024 * 1024; // 150 Mo
 
@@ -227,7 +228,7 @@ export default function ArtistScreen() {
       };
       publish(meta);
 
-      toast(`✓ « ${title.trim()} » vérifié et publié — en tête de Découvrir !`);
+      toast(publishToast(title.trim()));
       setArtist(""); setTitle(""); setGenres(""); setDescription("");
       setPreviewStart("0"); setAudio(null); setCoverUri(null);
       setCoverDims({}); setCharteOk(false);
@@ -266,8 +267,8 @@ export default function ArtistScreen() {
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.intro}>
-            Publie un titre : il apparaîtra dans le deck Découvrir des auditeurs,
-            avec un extrait de 30 secondes.
+            Balance ton son. S'il passe la vérification, il part direct dans le
+            deck des auditeurs — extrait de 30 secondes, comme tout le monde.
           </Text>
 
           <Field label="Nom d'artiste">

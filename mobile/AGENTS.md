@@ -17,6 +17,15 @@ Docs versionnées : https://docs.expo.dev/versions/v54.0.0/
 - État : `src/lib/store.tsx` (Context + AsyncStorage). Modération : `src/lib/moderation.ts`.
 - Extraits du catalogue : assets M4A pré-générés (`scripts/build-previews.sh`).
 
+## Voix éditoriale — NE PAS ASEPTISER
+
+Tous les textes UI passent par la voix de Tune (`src/lib/voice.ts`) :
+tutoiement, chaleureux, un peu cash, références culture musique, formulations
+**variées** (jamais deux fois la même phrase — c'est voulu, c'est humain).
+Interdit : les textes génériques type « Ajouté avec succès », « Bienvenue dans
+l'application », les emojis en rafale, le ton corporate. En cas de doute,
+écris comme un pote qui te fait découvrir un disque.
+
 ## Divers
 
 - npm : `.npmrc` du projet impose `legacy-peer-deps` et un cache local (permissions).

@@ -17,9 +17,11 @@ import { searchDeezer } from "../../lib/deezer";
 import { useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
+import { likeToast, noResultsLine, searchPlaceholder } from "../../lib/voice";
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
+  const [placeholder] = useState(searchPlaceholder);
   const [deezerResults, setDeezerResults] = useState<Track[]>([]);
   const [searching, setSearching] = useState(false);
   const { allTracks, bucketOf, toggleLiked, registerTracks } = useStore();
@@ -74,7 +76,7 @@ export default function SearchScreen() {
           style={styles.input}
           value={query}
           onChangeText={setQuery}
-          placeholder="Titre, artiste ou genre…"
+          placeholder={placeholder}
           placeholderTextColor={C.muted}
           autoCorrect={false}
         />
@@ -82,14 +84,14 @@ export default function SearchScreen() {
 
       {query.trim() === "" ? (
         <Text style={styles.empty}>
-          Cherche un titre ou un artiste{"\n"}dans tout le catalogue Deezer.
+          Tape un nom — on fouille{"\n"}tout le catalogue mondial.
         </Text>
       ) : searching && results.length === 0 ? (
         <View style={{ marginTop: 60, alignItems: "center" }}>
           <ActivityIndicator color={C.accent} />
         </View>
       ) : results.length === 0 ? (
-        <Text style={styles.empty}>Aucun résultat pour « {query} »</Text>
+        <Text style={styles.empty}>{noResultsLine(query)}</Text>
       ) : (
         <FlatList
           data={results}
@@ -112,8 +114,8 @@ export default function SearchScreen() {
                       toggleLiked(item);
                       toast(
                         liked
-                          ? `« ${item.title} » retiré`
-                          : `❤ « ${item.title} » ajouté`
+                          ? `« ${item.title} » sort de la collec'.`
+                          : likeToast(item.title)
                       );
                     },
                   },
