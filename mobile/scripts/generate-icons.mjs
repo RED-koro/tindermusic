@@ -1,5 +1,6 @@
 /* Génère l'identité visuelle de Tune (icône, adaptive Android, splash, favicon)
    sans aucune dépendance : dessin par pixel + encodeur PNG maison (zlib Node).
+   Design retenu par Andy : la waveform (barres d'onde sonore violettes).
    Usage : node scripts/generate-icons.mjs */
 
 import { deflateSync } from "node:zlib";
@@ -53,88 +54,80 @@ function writePng(path, rgba, w, h) {
   console.log("✓", path.split("/assets/")[1], `(${w}×${h}, ${(png.length / 1024).toFixed(0)} Ko)`);
 }
 
-/* ---------- formes ---------- */
-// cœur implicite classique : (x² + y² − 1)³ − x²·y³ ≤ 0  (y vers le haut)
-const inHeart = (x, y) => {
-  const a = x * x + y * y - 1;
-  return a * a * a - x * x * y * y * y <= 0;
-};
-// triangle play (pointe à droite), coordonnées normalisées du glyphe
-const inPlay = (x, y) => {
-  const L = -0.22, R = 0.3, H = 0.30;
-  if (x < L || x > R) return false;
-  const half = H * (1 - (x - L) / (R - L));
-  return Math.abs(y) <= half;
-};
-
+/* ---------- outils ---------- */
 const lerp = (a, b, t) => a + (b - a) * t;
 const mix = (c1, c2, t) => [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)];
+const clamp01 = t => Math.max(0, Math.min(1, t));
+
+const BG_TOP = [16, 10, 28];
+const BG_BOT = [8, 8, 13];
+const VIOLET_HI = [214, 116, 255];
+const VIOLET_LO = [124, 77, 255];
+
+/** rounded-rect : le point est-il dans le rectangle arrondi ? */
+function inRoundedRect(nx, ny, cx, cy, w, h, r) {
+  const qx = Math.abs(nx - cx) - (w / 2 - r);
+  const qy = Math.abs(ny - cy) - (h / 2 - r);
+  const ax = Math.max(qx, 0), ay = Math.max(qy, 0);
+  return ax * ax + ay * ay <= r * r;
+}
+
+/* ---------- la waveform ---------- */
+const BARS = [
+  { x: -0.72, h: 0.38 }, { x: -0.48, h: 0.72 }, { x: -0.24, h: 0.5 },
+  { x: 0, h: 1.3 }, { x: 0.24, h: 0.92 }, { x: 0.48, h: 0.58 }, { x: 0.72, h: 0.42 },
+];
+
+/** Couleur de la barre touchée en (nx, ny), ou null. mono = tout blanc. */
+function barColor(nx, ny, mono) {
+  for (let i = 0; i < BARS.length; i++) {
+    const b = BARS[i];
+    if (inRoundedRect(nx, ny, b.x, 0, 0.15, b.h, 0.075)) {
+      if (mono) return [255, 255, 255];
+      const central = 1 - Math.abs(i - 3) / 4;
+      const c = mix(VIOLET_HI, VIOLET_LO, clamp01((b.h / 2 - ny) / b.h));
+      return mix(c, [240, 220, 255], central * 0.25);
+    }
+  }
+  return null;
+}
 
 /* ---------- rendu ---------- */
-const BG_TOP = [16, 10, 28];      // violet très sombre
-const BG_BOT = [8, 8, 13];        // C.bg
-const HEART_TOP = [214, 116, 255]; // violet clair
-const HEART_BOT = [124, 77, 255];  // violet profond
 const SS = 3; // super-échantillonnage anti-aliasing
 
 /**
- * Rend une image carrée.
- * mode: "full"  → fond + halo + anneaux + cœur + play (icône complète)
- *       "glyph" → cœur + play sur fond transparent (splash / foreground)
- *       "mono"  → glyphe blanc sur transparent (Android monochrome)
- * scale: taille du cœur relative à l'image
+ * mode: "full"  → fond dégradé + halo + waveform (icône complète)
+ *       "glyph" → waveform seule sur fond transparent (splash / foreground)
+ *       "mono"  → waveform blanche sur transparent (Android monochrome)
+ *       "bg"    → fond seul (Android adaptive background)
+ * scale: taille de la waveform relative à l'image
  */
-function render(size, mode, scale) {
+function render(size, mode, scale = 1) {
   const buf = Buffer.alloc(size * size * 4);
   for (let py = 0; py < size; py++) {
     for (let px = 0; px < size; px++) {
       let r = 0, g = 0, b = 0, a = 0;
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
-          // coordonnées normalisées [-1,1], y vers le haut, cœur centré
           const nx = ((px + (sx + 0.5) / SS) / size) * 2 - 1;
           const ny = 1 - ((py + (sy + 0.5) / SS) / size) * 2;
-          // espace du cœur (le cœur implicite tient dans ~[-1.15,1.15])
-          const hx = (nx / scale) * 1.25;
-          const hy = ((ny + 0.06 * scale) / scale) * 1.25 + 0.1;
 
-          let cr, cg, cb, ca;
-          const heart = inHeart(hx, hy);
-          const play = heart && inPlay(hx, hy - 0.05);
-
-          if (mode === "full") {
-            // fond dégradé vertical + halo radial derrière le cœur
-            const t = (1 - ny) / 2;
-            let base = mix(BG_TOP, BG_BOT, t);
+          let cr = 0, cg = 0, cb = 0, ca = 0;
+          if (mode === "full" || mode === "bg") {
+            let base = mix(BG_TOP, BG_BOT, (1 - ny) / 2);
             const d = Math.sqrt(nx * nx + ny * ny);
-            const glow = Math.max(0, 1 - d / 0.95);
+            const glow = Math.max(0, 1 - d / 1.0);
             base = mix(base, [96, 60, 160], glow * glow * 0.35);
-            // anneaux "ondes sonores"
-            for (const ring of [0.78, 0.9]) {
-              if (Math.abs(d - ring) < 0.008) base = mix(base, [190, 130, 255], 0.35);
-            }
             [cr, cg, cb] = base;
             ca = 255;
-          } else {
-            cr = cg = cb = 0;
-            ca = 0;
           }
-
-          if (heart) {
-            if (mode === "mono") {
-              cr = cg = cb = 255;
-            } else {
-              // dégradé vertical dans le cœur + liseré clair en haut
-              const ht = Math.min(1, Math.max(0, (1.15 - hy) / 2.1));
-              [cr, cg, cb] = mix(HEART_TOP, HEART_BOT, ht);
+          if (mode !== "bg") {
+            const c = barColor(nx / scale, ny / scale, mode === "mono");
+            if (c) {
+              [cr, cg, cb] = c;
+              ca = 255;
             }
-            ca = 255;
           }
-          if (play) {
-            if (mode === "mono") { cr = cg = cb = 0; ca = 0; }
-            else { cr = cg = cb = 255; ca = 255; }
-          }
-
           r += cr; g += cg; b += cb; a += ca;
         }
       }
@@ -146,11 +139,10 @@ function render(size, mode, scale) {
   return buf;
 }
 
-writePng(join(OUT, "icon.png"), render(1024, "full", 0.62), 1024, 1024);
-writePng(join(OUT, "android-icon-foreground.png"), render(1024, "glyph", 0.40), 1024, 1024);
-writePng(join(OUT, "android-icon-monochrome.png"), render(1024, "mono", 0.40), 1024, 1024);
-// fond adaptive : dégradé seul (glyphe à l'échelle 0 → jamais dessiné)
-writePng(join(OUT, "android-icon-background.png"), render(1024, "full", 0.0001), 1024, 1024);
-writePng(join(OUT, "splash-icon.png"), render(512, "glyph", 0.85), 512, 512);
-writePng(join(OUT, "favicon.png"), render(64, "full", 0.62), 64, 64);
-console.log("\nIdentité visuelle Tune générée dans assets/images/");
+writePng(join(OUT, "icon.png"), render(1024, "full", 0.78), 1024, 1024);
+writePng(join(OUT, "android-icon-foreground.png"), render(1024, "glyph", 0.52), 1024, 1024);
+writePng(join(OUT, "android-icon-monochrome.png"), render(1024, "mono", 0.52), 1024, 1024);
+writePng(join(OUT, "android-icon-background.png"), render(1024, "bg"), 1024, 1024);
+writePng(join(OUT, "splash-icon.png"), render(512, "glyph", 0.95), 512, 512);
+writePng(join(OUT, "favicon.png"), render(64, "full", 0.85), 64, 64);
+console.log("\nIdentité visuelle Tune (waveform) générée dans assets/images/");
