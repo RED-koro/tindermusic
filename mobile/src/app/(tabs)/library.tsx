@@ -61,6 +61,7 @@ export default function LibraryScreen() {
           renderItem={({ item }) => (
             <TrackRow
               track={item}
+              queue={tracks}
               actions={[
                 bucket === "liked"
                   ? {

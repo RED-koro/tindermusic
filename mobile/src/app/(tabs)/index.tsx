@@ -3,7 +3,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Linking from "expo-linking";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -41,6 +41,7 @@ import {
   fetchFeaturedTracks,
 } from "../../lib/deezer";
 import { listenLinks } from "../../lib/listen";
+import { shareTrack } from "../../lib/share";
 import { Bucket, useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
@@ -529,6 +530,31 @@ function InfoBack({
           </View>
         </View>
       )}
+      <View style={styles.backActionsRow}>
+        {track.deezer && track.artistId ? (
+          <Pressable
+            testID="btn-artist-view"
+            style={styles.backAction}
+            onPress={() =>
+              router.push({
+                pathname: "/artist-view",
+                params: { id: String(track.artistId), name: track.artist },
+              })
+            }
+          >
+            <Ionicons name="person-outline" size={15} color={C.accent} />
+            <Text style={styles.backActionText}>Voir l'artiste</Text>
+          </Pressable>
+        ) : null}
+        <Pressable
+          testID="btn-share"
+          style={styles.backAction}
+          onPress={() => shareTrack(track)}
+        >
+          <Ionicons name="share-outline" size={15} color={C.accent} />
+          <Text style={styles.backActionText}>Partager</Text>
+        </Pressable>
+      </View>
       <View style={styles.backFooter}>
         {track.custom && onReport && (
           <Pressable testID="btn-report" style={styles.reportBtn} onPress={onReport}>
@@ -667,6 +693,23 @@ const styles = StyleSheet.create({
     backgroundColor: C.card2,
   },
   listenChipText: { color: C.text, fontSize: 13 },
+  backActionsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  backAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(139,92,246,.45)",
+  },
+  backActionText: { color: C.accent, fontSize: 13 },
   backFooter: { marginTop: "auto", alignItems: "center", gap: 6 },
   reportBtn: {
     flexDirection: "row",

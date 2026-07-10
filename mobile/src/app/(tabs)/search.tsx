@@ -103,6 +103,7 @@ export default function SearchScreen() {
               <TrackRow
                 track={item}
                 subtitle={item.deezer ? item.album : undefined}
+                queue={results}
                 actions={[
                   {
                     icon: liked ? "heart" : "heart-outline",

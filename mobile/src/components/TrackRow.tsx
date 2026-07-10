@@ -18,14 +18,17 @@ export function TrackRow({
   track,
   subtitle,
   actions,
+  queue,
 }: {
   track: Track;
   subtitle?: string;
   actions: Action[];
+  /** File de lecture pour l'enchaînement auto dans le mini-player */
+  queue?: Track[];
 }) {
   return (
     <View style={styles.row}>
-      <Pressable style={styles.cover} onPress={() => playInMini(track)}>
+      <Pressable style={styles.cover} onPress={() => playInMini(track, queue)}>
         <CoverArt track={track} />
         <View style={styles.coverOverlay}>
           <Ionicons name="play" size={18} color="#fff" />

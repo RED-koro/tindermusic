@@ -68,7 +68,10 @@ export default function ProfileScreen() {
         <View style={styles.stats}>
           <Stat value={state.swipes} label="Swipes" />
           <Stat value={state.liked.length} label="Aimés" />
-          <Stat value={state.later.length} label="À revoir" />
+          <Stat
+            value={Math.round(state.stats.listenSeconds / 60)}
+            label="Min. écoutées"
+          />
         </View>
 
         <Text style={styles.sectionTitle}>Tes genres préférés (algo v1)</Text>

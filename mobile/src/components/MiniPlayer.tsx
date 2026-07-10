@@ -3,7 +3,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { playInMini, togglePlayback, usePlayback } from "../lib/audio";
+import { playInMini, advanceMiniQueue, togglePlayback, usePlayback } from "../lib/audio";
 import { Track } from "../lib/catalog";
 import { CoverArt } from "../lib/covers";
 import { useStore } from "../lib/store";
@@ -25,9 +25,12 @@ export function MiniPlayer({ queue }: { queue?: Track[] }) {
       : state.liked.map(id => byId[id]).filter(Boolean);
 
   const next = () => {
-    if (!list.length) return;
-    const i = list.findIndex(t => t.id === miniTrackId);
-    playInMini(list[(i + 1) % list.length]);
+    if (list.length > 1) {
+      const i = list.findIndex(t => t.id === miniTrackId);
+      playInMini(list[(i + 1) % list.length], list);
+    } else {
+      advanceMiniQueue();
+    }
   };
 
   return (

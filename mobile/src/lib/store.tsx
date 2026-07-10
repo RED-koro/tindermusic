@@ -12,6 +12,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { setOnListenChunk } from "./audio";
 import { hashCode, SCENES, Track } from "./catalog";
 import { REPORTS_TO_HIDE } from "./moderation";
 
@@ -65,6 +66,8 @@ interface TuneState {
   lastDecision: LastDecision | null;
   /** Onboarding "choisis tes genres" terminé (amorce l'algo au 1er lancement) */
   onboarded: boolean;
+  /** Statistiques d'écoute (profil) */
+  stats: { listenSeconds: number };
 }
 
 const EMPTY: TuneState = {
@@ -79,6 +82,7 @@ const EMPTY: TuneState = {
   freshId: null,
   lastDecision: null,
   onboarded: false,
+  stats: { listenSeconds: 0 },
 };
 
 const STORAGE_KEY = "tune-state-v1";
@@ -200,6 +204,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {});
   }, [state, hydrated]);
+
+  // le moteur audio crédite ici le temps d'écoute (stats du profil)
+  useEffect(() => {
+    setOnListenChunk(seconds => {
+      setState(prev => ({
+        ...prev,
+        stats: {
+          listenSeconds: Math.round(prev.stats.listenSeconds + seconds),
+        },
+      }));
+    });
+    return () => setOnListenChunk(null);
+  }, []);
 
   // seuls les titres validés par la modération sont proposés aux auditeurs
   const allTracks = useMemo(

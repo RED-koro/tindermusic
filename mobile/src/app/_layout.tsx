@@ -19,6 +19,7 @@ export default function RootLayout() {
         >
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="artist" />
+          <Stack.Screen name="artist-view" />
           <Stack.Screen name="legal" />
         </Stack>
         <Toaster />

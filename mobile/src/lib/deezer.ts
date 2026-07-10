@@ -135,6 +135,38 @@ export async function fetchArtistTop(
     .filter((t): t is Track => !!t);
 }
 
+export interface ArtistInfo {
+  id: number;
+  name: string;
+  pictureUrl: string | null;
+  fans: number;
+  albums: number;
+}
+
+/** Fiche d'un artiste (photo, fans, nombre d'albums). */
+export async function fetchArtistInfo(artistId: number): Promise<ArtistInfo | null> {
+  try {
+    const a = await request<{
+      id: number;
+      name: string;
+      picture_big?: string;
+      picture_medium?: string;
+      nb_fan?: number;
+      nb_album?: number;
+    }>(`/artist/${artistId}`);
+    if (!a?.id) return null;
+    return {
+      id: a.id,
+      name: a.name,
+      pictureUrl: a.picture_big || a.picture_medium || null,
+      fans: a.nb_fan ?? 0,
+      albums: a.nb_album ?? 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchRelatedArtists(
   artistId: number,
   limit = 2
