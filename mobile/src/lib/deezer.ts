@@ -28,7 +28,15 @@ let jsonpCounter = 0;
 
 function request<T>(path: string): Promise<T> {
   if (Platform.OS !== "web") {
-    return fetch(`${API}${path}`).then(r => r.json());
+    // timeout dur : un appel qui pend ne doit jamais bloquer l'app
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), 8000);
+    return fetch(`${API}${path}`, { signal: controller.signal })
+      .then(r => {
+        if (!r.ok) throw new Error(`deezer-http-${r.status}`);
+        return r.json() as Promise<T>;
+      })
+      .finally(() => clearTimeout(deadline));
   }
   return new Promise<T>((resolve, reject) => {
     const cb = `__deezer_cb_${++jsonpCounter}`;

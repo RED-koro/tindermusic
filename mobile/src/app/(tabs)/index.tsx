@@ -200,7 +200,7 @@ export default function DiscoverScreen() {
         decide(track, bucket, listened);
         if (bucket === "liked") toast(likeToast(track.title));
         else if (bucket === "later") toast(laterToast(track.title));
-        else toast(nopeToast(track.genres[0]));
+        else toast(nopeToast(track.genres[0] ?? "ce style"));
         deciding.current = false;
       }, 230);
     },
@@ -527,7 +527,7 @@ function InfoBack({
             : `${track.artist} a déposé ce titre directement sur Tune. Un like, et tu soutiens la démarche.`
           : track.featured
             ? `${track.artist}, c'est la sélection maison. On assume à 100 %.`
-            : `Repéré pour toi dans les charts ${track.genres[0]}. T'as 30 secondes pour trancher.`}
+            : `Repéré pour toi dans les charts ${track.genres[0] ?? "du moment"}. T'as 30 secondes pour trancher.`}
       </Text>
       {!track.custom && (
         <View style={styles.listenBox}>

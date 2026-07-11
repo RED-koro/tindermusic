@@ -190,7 +190,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // migration : les utilisateurs qui ont déjà swipé passent l'onboarding
         const onboarded =
           parsed.onboarded ?? ((parsed.swipes || 0) > 0 || (parsed.liked || []).length > 0);
-        setState({ ...EMPTY, ...parsed, customs, onboarded });
+        // bornage du stockage (AsyncStorage est limité, ~6 Mo sur Android) :
+        // - la liste des rejetés est plafonnée (les plus vieux peuvent revenir
+        //   dans le deck un jour, ce n'est pas un drame)
+        // - les métadonnées Deezer ne sont gardées que pour les titres
+        //   encore classés quelque part
+        const DISLIKED_MAX = 800;
+        const disliked: string[] = (parsed.disliked || []).slice(-DISLIKED_MAX);
+        const referenced = new Set<string>([
+          ...(parsed.liked || []),
+          ...(parsed.later || []),
+          ...disliked,
+        ]);
+        const savedDeezer: Record<string, Track> = {};
+        for (const [id, t] of Object.entries(parsed.savedDeezer || {})) {
+          if (referenced.has(id)) savedDeezer[id] = t as Track;
+        }
+        setState({ ...EMPTY, ...parsed, customs, onboarded, disliked, savedDeezer });
       })
       .catch(() => {})
       .finally(() => setHydrated(true));
