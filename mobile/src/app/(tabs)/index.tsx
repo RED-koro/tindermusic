@@ -42,6 +42,7 @@ import {
 } from "../../lib/deezer";
 import { listenLinks } from "../../lib/listen";
 import { shareTrack } from "../../lib/share";
+import { S } from "../../lib/strings";
 import {
   deckHint,
   emptyDeckLine,
@@ -113,10 +114,10 @@ export default function DiscoverScreen() {
             return [...prev, ...tracks.filter(t => !seen.has(t.id))];
           });
         } else {
-          toast("Deezer inaccessible — vérifie ta connexion");
+          toast(S.discover.offline);
         }
       } catch {
-        toast("Deezer inaccessible — vérifie ta connexion");
+        toast(S.discover.offline);
       } finally {
         setLoadingFeed(false);
       }
@@ -200,7 +201,7 @@ export default function DiscoverScreen() {
         decide(track, bucket, listened);
         if (bucket === "liked") toast(likeToast(track.title));
         else if (bucket === "later") toast(laterToast(track.title));
-        else toast(nopeToast(track.genres[0] ?? "ce style"));
+        else toast(nopeToast(track.genres[0] ?? S.discover.styleFallback));
         deciding.current = false;
       }, 230);
     },
@@ -274,15 +275,15 @@ export default function DiscoverScreen() {
       stopPlayback();
       setShowInfo(false);
       reportTrack(track.id);
-      toast("Merci — titre signalé et masqué en attendant vérification");
+      toast(S.discover.reportDone);
     };
     if (Platform.OS === "web") {
       // Alert à boutons non supporté sur web
-      if (window.confirm(`Signaler « ${track.title} » comme inapproprié ?`)) doReport();
+      if (window.confirm(S.discover.reportMsg(track.title))) doReport();
     } else {
-      Alert.alert("Signaler", `Signaler « ${track.title} » comme inapproprié ?`, [
-        { text: "Annuler", style: "cancel" },
-        { text: "Signaler", style: "destructive", onPress: doReport },
+      Alert.alert(S.discover.reportTitle, S.discover.reportMsg(track.title), [
+        { text: S.discover.cancel, style: "cancel" },
+        { text: S.discover.reportConfirm, style: "destructive", onPress: doReport },
       ]);
     }
   }, [deck, reportTrack]);
@@ -295,10 +296,10 @@ export default function DiscoverScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.topbar}>
-        <Pressable hitSlop={8} onPress={() => toast("Filtres : bientôt disponible")}>
+        <Pressable hitSlop={8} onPress={() => toast(S.discover.filtersSoon)}>
           <Ionicons name="options-outline" size={22} color={C.text} />
         </Pressable>
-        <Text style={styles.h1}>Découvrir</Text>
+        <Text style={styles.h1}>{S.tabs.discover}</Text>
         {state.lastDecision ? (
           <Pressable
             testID="btn-undo"
@@ -328,10 +329,10 @@ export default function DiscoverScreen() {
             <Text style={{ fontSize: 44 }}>💿</Text>
             <Text style={styles.emptyText}>{emptyLine}</Text>
             <Pressable style={styles.restartBtn} onPress={() => loadFeed(40)}>
-              <Text style={styles.restartText}>Ressers-moi ça</Text>
+              <Text style={styles.restartText}>{S.discover.reloadFeed}</Text>
             </Pressable>
             <Pressable style={styles.restartAlt} onPress={resetBuckets}>
-              <Text style={{ color: C.muted, fontSize: 13.5 }}>Tout re-swiper</Text>
+              <Text style={{ color: C.muted, fontSize: 13.5 }}>{S.discover.reswipeAll}</Text>
             </Pressable>
           </View>
         )}
@@ -364,13 +365,13 @@ export default function DiscoverScreen() {
                 />
               )}
               <Animated.View style={[styles.badge, styles.badgeLike, likeStyle]}>
-                <Text style={[styles.badgeText, { color: "#5bffa0" }]}>J'AIME</Text>
+                <Text style={[styles.badgeText, { color: "#5bffa0" }]}>{S.discover.like}</Text>
               </Animated.View>
               <Animated.View style={[styles.badge, styles.badgeNope, nopeStyle]}>
-                <Text style={[styles.badgeText, { color: C.danger }]}>NON</Text>
+                <Text style={[styles.badgeText, { color: C.danger }]}>{S.discover.nope}</Text>
               </Animated.View>
               <Animated.View style={[styles.badge, styles.badgeLater, laterStyle]}>
-                <Text style={[styles.badgeText, { color: "#ffd75b" }]}>À REVOIR</Text>
+                <Text style={[styles.badgeText, { color: "#ffd75b" }]}>{S.discover.later}</Text>
               </Animated.View>
             </Animated.View>
           </GestureDetector>
@@ -405,11 +406,8 @@ function Onboarding({ onDone }: { onDone: (genres: string[]) => void }) {
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.obWrap}>
         <Text style={{ fontSize: 44 }}>🎧</Text>
-        <Text style={styles.obTitle}>C'est quoi, ton son ?</Text>
-        <Text style={styles.obSub}>
-          Coche ce qui te fait vibrer — trois minimum pour bien faire — et ton
-          premier deck sera déjà taillé pour toi.
-        </Text>
+        <Text style={styles.obTitle}>{S.discover.obTitle}</Text>
+        <Text style={styles.obSub}>{S.discover.obSub}</Text>
         <View style={styles.obChips}>
           {DEEZER_GENRES.map(g => {
             const on = selected.includes(g.label);
@@ -434,11 +432,11 @@ function Onboarding({ onDone }: { onDone: (genres: string[]) => void }) {
           onPress={() => onDone(selected)}
         >
           <Text style={styles.obBtnText}>
-            Envoie la musique{selected.length > 0 ? ` (${selected.length})` : ""}
+            {S.discover.obGo}{selected.length > 0 ? ` (${selected.length})` : ""}
           </Text>
         </Pressable>
         <Pressable testID="ob-skip" onPress={() => onDone([])} hitSlop={8}>
-          <Text style={styles.obSkip}>Je préfère me perdre tout seul</Text>
+          <Text style={styles.obSkip}>{S.discover.obSkip}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -509,29 +507,29 @@ function InfoBack({
   return (
     <View style={styles.back}>
       <Text style={styles.backTitle}>{track.title}</Text>
-      <KV label="Artiste" value={track.artist} />
-      {track.album ? <KV label="Album" value={track.album} /> : null}
-      <KV label="Genres" value={track.genres.join(", ")} />
+      <KV label={S.discover.kvArtist} value={track.artist} />
+      {track.album ? <KV label={S.discover.kvAlbum} value={track.album} /> : null}
+      <KV label={S.discover.kvGenres} value={track.genres.join(", ")} />
       {track.custom ? (
-        <KV label="Source" value="Publié par l'artiste" />
+        <KV label={S.discover.kvSource} value={S.discover.srcCustom} />
       ) : track.featured ? (
-        <KV label="Source" value="Sélection Tune ✦" />
+        <KV label={S.discover.kvSource} value={S.discover.srcFeatured} />
       ) : (
-        <KV label="Source" value="Deezer" />
+        <KV label={S.discover.kvSource} value="Deezer" />
       )}
-      <KV label="Extrait" value={`${PREVIEW_SECONDS} secondes`} />
+      <KV label={S.discover.kvExcerpt} value={`${PREVIEW_SECONDS} ${S.discover.seconds}`} />
       <Text style={styles.backText}>
         {track.custom
           ? track.description
             ? `« ${track.description} »  — ${track.artist}`
-            : `${track.artist} a déposé ce titre directement sur Tune. Un like, et tu soutiens la démarche.`
+            : S.discover.backCustom(track.artist)
           : track.featured
-            ? `${track.artist}, c'est la sélection maison. On assume à 100 %.`
-            : `Repéré pour toi dans les charts ${track.genres[0] ?? "du moment"}. T'as 30 secondes pour trancher.`}
+            ? S.discover.backFeatured(track.artist)
+            : S.discover.backDeezer(track.genres[0] ?? S.discover.chartsFallback)}
       </Text>
       {!track.custom && (
         <View style={styles.listenBox}>
-          <Text style={styles.listenLabel}>Écouter en entier sur</Text>
+          <Text style={styles.listenLabel}>{S.discover.listenOn}</Text>
           <View style={styles.listenRow}>
             {listenLinks(track).map(l => (
               <Pressable
@@ -559,7 +557,7 @@ function InfoBack({
             }
           >
             <Ionicons name="person-outline" size={15} color={C.accent} />
-            <Text style={styles.backActionText}>Voir l'artiste</Text>
+            <Text style={styles.backActionText}>{S.discover.seeArtist}</Text>
           </Pressable>
         ) : null}
         <Pressable
@@ -568,18 +566,18 @@ function InfoBack({
           onPress={() => shareTrack(track)}
         >
           <Ionicons name="share-outline" size={15} color={C.accent} />
-          <Text style={styles.backActionText}>Partager</Text>
+          <Text style={styles.backActionText}>{S.discover.share}</Text>
         </Pressable>
       </View>
       <View style={styles.backFooter}>
         {track.custom && onReport && (
           <Pressable testID="btn-report" style={styles.reportBtn} onPress={onReport}>
             <Ionicons name="flag-outline" size={15} color={C.danger} />
-            <Text style={{ color: C.danger, fontSize: 13.5 }}>Signaler ce titre</Text>
+            <Text style={{ color: C.danger, fontSize: 13.5 }}>{S.discover.reportTrack}</Text>
           </Pressable>
         )}
         <Pressable style={styles.closeBack} onPress={onClose}>
-          <Text style={{ color: C.text }}>Fermer</Text>
+          <Text style={{ color: C.text }}>{S.discover.close}</Text>
         </Pressable>
       </View>
     </View>

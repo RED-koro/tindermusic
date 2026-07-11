@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import React from "react";
+import { S } from "../../lib/strings";
 import { C } from "../../lib/theme";
 
 export default function TabsLayout() {
@@ -20,7 +21,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Découvrir",
+          title: S.tabs.discover,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="compass-outline" size={size} color={color} />
           ),
@@ -29,7 +30,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="library"
         options={{
-          title: "Bibliothèque",
+          title: S.tabs.library,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="musical-notes-outline" size={size} color={color} />
           ),
@@ -38,7 +39,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="search"
         options={{
-          title: "Rechercher",
+          title: S.tabs.search,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="search-outline" size={size} color={color} />
           ),
@@ -47,7 +48,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profil",
+          title: S.tabs.profile,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-circle-outline" size={size} color={color} />
           ),

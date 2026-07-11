@@ -21,6 +21,8 @@ import { ArtistInfo, fetchArtistInfo, fetchArtistTop } from "../lib/deezer";
 import { useStore } from "../lib/store";
 import { C } from "../lib/theme";
 import { toast } from "../lib/toast";
+import { S } from "../lib/strings";
+import { likeToast } from "../lib/voice";
 
 const fmtFans = (n: number) =>
   n >= 1_000_000
@@ -61,7 +63,7 @@ export default function ArtistViewScreen() {
     };
   }, [id, registerTracks]);
 
-  const displayName = info?.name ?? name ?? "Artiste";
+  const displayName = info?.name ?? name ?? S.artistView.fallbackName;
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
@@ -95,12 +97,12 @@ export default function ArtistViewScreen() {
               <Text style={styles.name}>{displayName}</Text>
               {info && (
                 <Text style={styles.meta}>
-                  {fmtFans(info.fans)} fans • {info.albums} albums
+                  {fmtFans(info.fans)} {S.artistView.fans} • {info.albums} {S.artistView.albums}
                 </Text>
               )}
-              <Text style={styles.sectionTitle}>Top titres</Text>
+              <Text style={styles.sectionTitle}>{S.artistView.topTracks}</Text>
               {tracks.length === 0 && (
-                <Text style={styles.empty}>Aucun extrait disponible.</Text>
+                <Text style={styles.empty}>{S.artistView.noPreview}</Text>
               )}
             </View>
           }
@@ -119,8 +121,8 @@ export default function ArtistViewScreen() {
                       toggleLiked(item);
                       toast(
                         liked
-                          ? `« ${item.title} » retiré`
-                          : `❤ « ${item.title} » ajouté`
+                          ? S.library.removed(item.title)
+                          : likeToast(item.title)
                       );
                     },
                   },

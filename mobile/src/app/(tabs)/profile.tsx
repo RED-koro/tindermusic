@@ -17,6 +17,7 @@ import { useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
 import { profileTagline } from "../../lib/voice";
+import { S } from "../../lib/strings";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -39,22 +40,22 @@ export default function ProfileScreen() {
   const confirmReset = () => {
     const doReset = () => {
       resetData();
-      toast("Données réinitialisées");
+      toast(S.profile.resetDone);
     };
     if (Platform.OS === "web") {
       // Alert à boutons non supporté sur web
-      if (window.confirm("Réinitialiser tes swipes et tes goûts ?")) doReset();
+      if (window.confirm(S.profile.resetConfirmWeb)) doReset();
     } else {
-      Alert.alert("Réinitialiser", "Tes swipes et tes goûts seront effacés.", [
-        { text: "Annuler", style: "cancel" },
-        { text: "Réinitialiser", style: "destructive", onPress: doReset },
+      Alert.alert(S.profile.resetTitle, S.profile.resetMsg, [
+        { text: S.discover.cancel, style: "cancel" },
+        { text: S.profile.resetTitle, style: "destructive", onPress: doReset },
       ]);
     }
   };
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={styles.h1}>Profil</Text>
+      <Text style={styles.h1}>{S.profile.title}</Text>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.avatar}>
@@ -67,19 +68,17 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.stats}>
-          <Stat value={state.swipes} label="Swipes" />
-          <Stat value={state.liked.length} label="Aimés" />
+          <Stat value={state.swipes} label={S.profile.swipes} />
+          <Stat value={state.liked.length} label={S.profile.liked} />
           <Stat
             value={Math.round(state.stats.listenSeconds / 60)}
-            label="Minutes d'écoute"
+            label={S.profile.minutes}
           />
         </View>
 
-        <Text style={styles.sectionTitle}>Tes genres préférés (algo v1)</Text>
+        <Text style={styles.sectionTitle}>{S.profile.favGenres}</Text>
         {liked.length === 0 ? (
-          <Text style={styles.emptyGenres}>
-            Swipe quelques titres pour que l'algo apprenne tes goûts.
-          </Text>
+          <Text style={styles.emptyGenres}>{S.profile.emptyGenres}</Text>
         ) : (
           liked.map(([g, v]) => (
             <GenreBar key={g} name={g} ratio={Math.abs(v) / maxAbs} />
@@ -88,7 +87,7 @@ export default function ProfileScreen() {
 
         {artistEntries.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Tes artistes préférés</Text>
+            <Text style={styles.sectionTitle}>{S.profile.favArtists}</Text>
             {artistEntries.map(([a, v]) => (
               <GenreBar key={a} name={a} ratio={v / maxArtist} />
             ))}
@@ -97,7 +96,7 @@ export default function ProfileScreen() {
 
         {avoided.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Genres évités</Text>
+            <Text style={styles.sectionTitle}>{S.profile.avoided}</Text>
             {avoided.map(([g, v]) => (
               <GenreBar key={g} name={g} ratio={Math.abs(v) / maxAbs} negative />
             ))}
@@ -105,15 +104,15 @@ export default function ProfileScreen() {
         )}
 
         <Pressable style={styles.artistBtn} onPress={() => router.push("/artist")}>
-          <Text style={styles.artistBtnText}>🎤 Espace artiste — publier un titre</Text>
+          <Text style={styles.artistBtnText}>{S.profile.artistSpace}</Text>
         </Pressable>
 
         <Pressable style={styles.legalBtn} onPress={() => router.push("/legal")}>
-          <Text style={styles.legalText}>À propos, confidentialité & mentions légales</Text>
+          <Text style={styles.legalText}>{S.profile.legal}</Text>
         </Pressable>
 
         <Pressable style={styles.resetBtn} onPress={confirmReset}>
-          <Text style={styles.resetText}>Réinitialiser mes données</Text>
+          <Text style={styles.resetText}>{S.profile.reset}</Text>
         </Pressable>
       </ScrollView>
       <MiniPlayer />

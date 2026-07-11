@@ -3,15 +3,16 @@
 
 import { Platform, Share } from "react-native";
 import { Track } from "./catalog";
+import { isFr } from "./i18n";
 import { toast } from "./toast";
 
 export async function shareTrack(track: Track) {
   const link = track.deezer
     ? `https://www.deezer.com/track/${track.id.replace(/^dz-/, "")}`
     : null;
-  const message = `🎧 J'ai découvert « ${track.title} » de ${track.artist} sur Tune !${
-    link ? `\n${link}` : ""
-  }`;
+  const message = isFr
+    ? `🎧 J'ai découvert « ${track.title} » de ${track.artist} sur Tune !${link ? `\n${link}` : ""}`
+    : `🎧 I discovered "${track.title}" by ${track.artist} on Tune!${link ? `\n${link}` : ""}`;
 
   if (Platform.OS === "web") {
     const nav = navigator as Navigator & { share?: (d: { text: string }) => Promise<void> };
@@ -19,7 +20,7 @@ export async function shareTrack(track: Track) {
       if (nav.share) await nav.share({ text: message });
       else {
         await navigator.clipboard.writeText(message);
-        toast("Copié — colle-le où tu veux !");
+        toast(isFr ? "Copié — colle-le où tu veux !" : "Copied — paste it anywhere!");
       }
     } catch {
       /* partage annulé */

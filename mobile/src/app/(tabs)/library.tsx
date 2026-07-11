@@ -8,17 +8,18 @@ import { TrackRow } from "../../components/TrackRow";
 import { Bucket, useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
+import { S } from "../../lib/strings";
 
 const TABS: { bucket: Bucket; label: string }[] = [
-  { bucket: "liked", label: "❤ Aimés" },
-  { bucket: "later", label: "⏱ À revoir" },
-  { bucket: "disliked", label: "✕ Pas pour moi" },
+  { bucket: "liked", label: S.library.liked },
+  { bucket: "later", label: S.library.later },
+  { bucket: "disliked", label: S.library.disliked },
 ];
 
 const EMPTY_TEXT: Record<Bucket, string> = {
-  liked: "Encore rien par ici.\nSwipe à droite sur ce qui te touche, ça arrive vite.",
-  later: "Rien en attente.\nSwipe vers le haut pour garder un titre au chaud.",
-  disliked: "Personne au placard.\nÇa viendra, fais-toi confiance.",
+  liked: S.library.emptyLiked,
+  later: S.library.emptyLater,
+  disliked: S.library.emptyDisliked,
 };
 
 export default function LibraryScreen() {
@@ -32,7 +33,7 @@ export default function LibraryScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={styles.h1}>Ma bibliothèque</Text>
+      <Text style={styles.h1}>{S.library.title}</Text>
 
       <View style={styles.tabs}>
         {TABS.map(t => (
@@ -69,7 +70,7 @@ export default function LibraryScreen() {
                       color: C.accent,
                       onPress: () => {
                         toggleLiked(item);
-                        toast(`« ${item.title} » sort de la collec'.`);
+                        toast(S.library.removed(item.title));
                       },
                     }
                   : {
@@ -77,14 +78,14 @@ export default function LibraryScreen() {
                       color: C.muted,
                       onPress: () => {
                         moveToLiked(item);
-                        toast(`« ${item.title} » passe dans les aimés. Logique.`);
+                        toast(S.library.movedToLiked(item.title));
                       },
                     },
                 {
                   icon: "refresh-outline",
                   onPress: () => {
                     restore(item.id);
-                    toast(`« ${item.title} » retourne dans le deck.`);
+                    toast(S.library.backToDeck(item.title));
                   },
                 },
               ]}

@@ -18,6 +18,7 @@ import { useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
 import { likeToast, noResultsLine, searchPlaceholder } from "../../lib/voice";
+import { S } from "../../lib/strings";
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
@@ -70,7 +71,7 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={styles.h1}>Rechercher</Text>
+      <Text style={styles.h1}>{S.search.title}</Text>
       <View style={styles.inputWrap}>
         <TextInput
           style={styles.input}
@@ -83,9 +84,7 @@ export default function SearchScreen() {
       </View>
 
       {query.trim() === "" ? (
-        <Text style={styles.empty}>
-          Tape un nom — on fouille{"\n"}tout le catalogue mondial.
-        </Text>
+        <Text style={styles.empty}>{S.search.emptyPrompt}</Text>
       ) : searching && results.length === 0 ? (
         <View style={{ marginTop: 60, alignItems: "center" }}>
           <ActivityIndicator color={C.accent} />
@@ -114,7 +113,7 @@ export default function SearchScreen() {
                       toggleLiked(item);
                       toast(
                         liked
-                          ? `« ${item.title} » sort de la collec'.`
+                          ? S.library.removed(item.title)
                           : likeToast(item.title)
                       );
                     },
