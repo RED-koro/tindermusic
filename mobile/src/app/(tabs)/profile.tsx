@@ -1,5 +1,6 @@
-/* Profil — stats de swipes, genres préférés/évités, accès Espace artiste */
+/* Profil — stats de swipes, genres préférés/évités, connexion Spotify */
 
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -13,6 +14,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MiniPlayer } from "../../components/MiniPlayer";
+import {
+  connectSpotify,
+  disconnectSpotify,
+  spotifyReady,
+  useSpotifyConnected,
+} from "../../lib/spotify";
 import { useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
@@ -22,6 +29,16 @@ import { S } from "../../lib/strings";
 export default function ProfileScreen() {
   const router = useRouter();
   const { state, resetData } = useStore();
+  const spotifyConnected = useSpotifyConnected();
+
+  const onSpotify = async () => {
+    if (spotifyConnected) {
+      await disconnectSpotify();
+      return;
+    }
+    const ok = await connectSpotify();
+    toast(ok ? S.profile.spotifyDone : S.profile.spotifyFail);
+  };
 
   const scores = Object.entries(state.genreScores).sort((a, b) => b[1] - a[1]);
   const liked = scores.filter(([, v]) => v > 0).slice(0, 5);
@@ -101,6 +118,19 @@ export default function ProfileScreen() {
               <GenreBar key={g} name={g} ratio={Math.abs(v) / maxAbs} negative />
             ))}
           </>
+        )}
+
+        {spotifyReady && (
+          <Pressable style={styles.spotifyBtn} onPress={onSpotify}>
+            <Ionicons
+              name="musical-notes"
+              size={18}
+              color={spotifyConnected ? "#1DB954" : C.accent}
+            />
+            <Text style={styles.spotifyText}>
+              {spotifyConnected ? S.profile.spotifyConnected : S.profile.connectSpotify}
+            </Text>
+          </Pressable>
         )}
 
         <Pressable style={styles.legalBtn} onPress={() => router.push("/legal")}>
@@ -196,6 +226,19 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   genreFill: { height: "100%", borderRadius: 4, backgroundColor: C.accent2 },
+  spotifyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 8,
+    padding: 14,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "rgba(29,185,84,.45)",
+    backgroundColor: "rgba(29,185,84,.10)",
+  },
+  spotifyText: { color: C.text, fontSize: 14, fontWeight: "600", flexShrink: 1 },
   legalBtn: { alignSelf: "center", paddingVertical: 4 },
   legalText: { color: C.muted, fontSize: 13, textDecorationLine: "underline" },
   resetBtn: {

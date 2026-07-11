@@ -44,6 +44,7 @@ import {
 import { FEATURED_LABEL } from "../../lib/featured";
 import { listenLinks } from "../../lib/listen";
 import { shareTrack } from "../../lib/share";
+import { addLikedToSpotify } from "../../lib/spotify";
 import { S } from "../../lib/strings";
 import {
   deckHint,
@@ -206,6 +207,8 @@ export default function DiscoverScreen() {
         stopPlayback();
         if (getAutoplay()) pendingPlay.current = true;
         decide(track, bucket, listened);
+        // si Spotify est connecté, le coup de cœur file dans sa playlist
+        if (bucket === "liked") addLikedToSpotify(track);
         if (bucket === "liked") toast(likeToast(track.title));
         else if (bucket === "later") toast(laterToast(track.title));
         else toast(nopeToast(track.genres[0] ?? S.discover.styleFallback));
