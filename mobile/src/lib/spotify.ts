@@ -11,9 +11,9 @@ import * as AuthSession from "expo-auth-session";
 import { useSyncExternalStore } from "react";
 import { Track } from "./catalog";
 
-// ⚠️ À remplir avec le Client ID du dashboard Spotify d'Andy
-//    (developer.spotify.com/dashboard → ton app → Settings → Client ID)
-const SPOTIFY_CLIENT_ID = "";
+// Client ID public de l'app Spotify (safe à embarquer — le flux PKCE n'utilise
+// pas de secret). Dashboard : developer.spotify.com/dashboard → Tune → Settings
+const SPOTIFY_CLIENT_ID = "3a38f3ac3e0c41e896f2a0c230b3aa46";
 
 export const spotifyReady = SPOTIFY_CLIENT_ID.length > 0;
 
