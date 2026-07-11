@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -37,9 +38,11 @@ import { CoverArt } from "../../lib/covers";
 import {
   ArtistSeed,
   DEEZER_GENRES,
+  fetchChart,
   fetchDiscoveryFeed,
   fetchFeaturedTracks,
 } from "../../lib/deezer";
+import { FEATURED_LABEL } from "../../lib/featured";
 import { listenLinks } from "../../lib/listen";
 import { shareTrack } from "../../lib/share";
 import { S } from "../../lib/strings";
@@ -83,6 +86,9 @@ export default function DiscoverScreen() {
 
   // Flux Deezer : vraie musique, chargée selon les genres préférés de l'user
   const [feed, setFeed] = useState<Track[]>([]);
+  // Filtres du deck (session) : labels de genres cochés, vide = tout
+  const [genreFilter, setGenreFilter] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const feedRequested = useRef(false);
 
@@ -137,6 +143,9 @@ export default function DiscoverScreen() {
   const deck = useMemo(() => {
     return [...allTracks, ...feed]
       .filter(t => !bucketOf(t.id))
+      .filter(
+        t => genreFilter.length === 0 || t.genres.some(g => genreFilter.includes(g))
+      )
       .map(t => ({
         t,
         s:
@@ -147,7 +156,7 @@ export default function DiscoverScreen() {
       }))
       .sort((a, b) => b.s - a.s)
       .map(x => x.t);
-  }, [allTracks, feed, bucketOf, affinity, state.freshId]);
+  }, [allTracks, feed, bucketOf, affinity, state.freshId, genreFilter]);
 
   const top: Track | undefined = deck[0];
   const under: Track | undefined = deck[1];
@@ -206,6 +215,32 @@ export default function DiscoverScreen() {
       }, 230);
     },
     [deck, decide, tx, ty]
+  );
+
+  const applyFilters = useCallback(
+    async (selected: string[]) => {
+      setGenreFilter(selected);
+      setShowFilters(false);
+      const toFetch = DEEZER_GENRES.filter(g => selected.includes(g.label));
+      if (!toFetch.length) return;
+      setLoadingFeed(true);
+      try {
+        const lists = await Promise.all(
+          toFetch.map(g => fetchChart(g.id, g.label, 25).catch(() => [] as Track[]))
+        );
+        const tracks = lists.flat();
+        if (tracks.length) {
+          registerTracks(tracks);
+          setFeed(prev => {
+            const seen = new Set(prev.map(t => t.id));
+            return [...prev, ...tracks.filter(t => !seen.has(t.id))];
+          });
+        }
+      } finally {
+        setLoadingFeed(false);
+      }
+    },
+    [registerTracks]
   );
 
   const pan = useMemo(
@@ -296,8 +331,12 @@ export default function DiscoverScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.topbar}>
-        <Pressable hitSlop={8} onPress={() => toast(S.discover.filtersSoon)}>
-          <Ionicons name="options-outline" size={22} color={C.text} />
+        <Pressable hitSlop={8} onPress={() => setShowFilters(true)}>
+          <Ionicons
+            name="options-outline"
+            size={22}
+            color={genreFilter.length ? C.accent : C.text}
+          />
         </Pressable>
         <Text style={styles.h1}>{S.tabs.discover}</Text>
         {state.lastDecision ? (
@@ -391,6 +430,13 @@ export default function DiscoverScreen() {
           <Ionicons name="heart" size={28} color={C.accent} />
         </Pressable>
       </View>
+
+      <FiltersSheet
+        visible={showFilters}
+        current={genreFilter}
+        onApply={applyFilters}
+        onClose={() => setShowFilters(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -440,6 +486,68 @@ function Onboarding({ onDone }: { onDone: (genres: string[]) => void }) {
         </Pressable>
       </View>
     </SafeAreaView>
+  );
+}
+
+function FiltersSheet({
+  visible,
+  current,
+  onApply,
+  onClose,
+}: {
+  visible: boolean;
+  current: string[];
+  onApply: (genres: string[]) => void;
+  onClose: () => void;
+}) {
+  const [selected, setSelected] = useState<string[]>(current);
+  useEffect(() => {
+    if (visible) setSelected(current);
+  }, [visible, current]);
+
+  const toggle = (label: string) =>
+    setSelected(prev =>
+      prev.includes(label) ? prev.filter(g => g !== label) : [...prev, label]
+    );
+
+  const options = [FEATURED_LABEL, ...DEEZER_GENRES.map(g => g.label)];
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
+        <Pressable style={styles.sheet} onPress={() => {}}>
+          <Text style={styles.sheetTitle}>{S.discover.filterTitle}</Text>
+          <Text style={styles.sheetHint}>{S.discover.filterHint}</Text>
+          <View style={styles.obChips}>
+            {options.map(label => {
+              const on = selected.includes(label);
+              return (
+                <Pressable
+                  key={label}
+                  testID={`filter-${label}`}
+                  style={[styles.obChip, on && styles.obChipOn]}
+                  onPress={() => toggle(label)}
+                >
+                  <Text style={[styles.obChipText, on && { color: "#fff" }]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.sheetActions}>
+            <Pressable testID="filter-clear" style={styles.sheetClear} onPress={() => onApply([])}>
+              <Text style={{ color: C.muted, fontSize: 14 }}>{S.discover.filterClear}</Text>
+            </Pressable>
+            <Pressable testID="filter-apply" style={styles.sheetApply} onPress={() => onApply(selected)}>
+              <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>
+                {S.discover.filterApply}
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -822,4 +930,34 @@ const styles = StyleSheet.create({
   },
   obBtnText: { color: "#fff", fontSize: 15.5, fontWeight: "700" },
   obSkip: { color: C.muted, fontSize: 13, textDecorationLine: "underline" },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,.6)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: C.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: C.line,
+    padding: 22,
+    paddingBottom: 34,
+    gap: 12,
+  },
+  sheetTitle: { color: C.text, fontSize: 19, fontWeight: "800" },
+  sheetHint: { color: C.muted, fontSize: 13.5 },
+  sheetActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 6,
+  },
+  sheetClear: { paddingVertical: 10, paddingHorizontal: 6 },
+  sheetApply: {
+    backgroundColor: C.accent2,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 22,
+  },
 });

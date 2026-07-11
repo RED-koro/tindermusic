@@ -13,7 +13,10 @@ const fr = {
     profile: "Profil",
   },
   discover: {
-    filtersSoon: "Filtres : bientôt disponible",
+    filterTitle: "Filtrer le deck",
+    filterHint: "Choisis un ou plusieurs genres — vide = tout le catalogue.",
+    filterApply: "Appliquer",
+    filterClear: "Tout afficher",
     like: "J'AIME",
     nope: "NON",
     later: "À REVOIR",
@@ -100,7 +103,10 @@ const en: typeof fr = {
     profile: "Profile",
   },
   discover: {
-    filtersSoon: "Filters: coming soon",
+    filterTitle: "Filter the deck",
+    filterHint: "Pick one or more genres — empty means everything.",
+    filterApply: "Apply",
+    filterClear: "Show everything",
     like: "LIKE",
     nope: "NOPE",
     later: "LATER",
