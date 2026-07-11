@@ -8,7 +8,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -23,6 +23,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MiniPlayer } from "../components/MiniPlayer";
 import { TrackRow } from "../components/TrackRow";
 import { isPlaying, stopPlayback } from "../lib/audio";
+import { Track } from "../lib/catalog";
+import {
+  cloudReady,
+  deleteCloudTrack,
+  fetchMyCloudTracks,
+  publishToCloud,
+} from "../lib/cloud";
 import {
   checkAudioDuration,
   checkAudioFile,
@@ -52,7 +59,18 @@ interface PickedAudio {
 
 export default function ArtistScreen() {
   const router = useRouter();
-  const { state, publish, removeCustom } = useStore();
+  const { state, publish, removeCustom, addCloudTrack, removeCloudTrack } = useStore();
+
+  // « Mes titres publiés » : depuis le cloud si le backend est branché,
+  // sinon les titres locaux (mode hors-ligne).
+  const [myCloud, setMyCloud] = useState<Track[]>([]);
+  const refreshMine = useCallback(() => {
+    if (cloudReady) fetchMyCloudTracks().then(setMyCloud).catch(() => {});
+  }, []);
+  useEffect(() => {
+    refreshMine();
+  }, [refreshMine]);
+  const myTracks: Track[] = cloudReady ? myCloud : state.customs.map(customToTrack);
 
   const [artist, setArtist] = useState("");
   const [title, setTitle] = useState("");
@@ -187,6 +205,38 @@ export default function ArtistScreen() {
         return;
       }
 
+      const cleanGenres = genres
+        .split(/[,;•]/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .slice(0, 5);
+
+      /* ---- Publication dans le cloud (visible par tous) ---- */
+      if (cloudReady) {
+        try {
+          const track = await publishToCloud({
+            artist: artist.trim(),
+            title: title.trim(),
+            genres: cleanGenres,
+            description: description.trim(),
+            previewStart: start,
+            audioUri: audio.uri,
+            audioName: audio.name,
+            coverUri,
+          });
+          addCloudTrack(track);
+          refreshMine();
+          toast(publishToast(title.trim()));
+          setArtist(""); setTitle(""); setGenres(""); setDescription("");
+          setPreviewStart("0"); setAudio(null); setCoverUri(null);
+          setCoverDims({}); setCharteOk(false);
+        } catch {
+          toast("Publication impossible — réessaie dans un instant");
+        }
+        return;
+      }
+
+      /* ---- Mode hors-ligne (pas de backend) : stockage local ---- */
       const id = `custom-${Date.now()}`;
       let audioUri = audio.uri;
       let finalCoverUri = coverUri;
@@ -211,11 +261,7 @@ export default function ArtistScreen() {
         id,
         artist: artist.trim(),
         title: title.trim(),
-        genres: genres
-          .split(/[,;•]/)
-          .map(s => s.trim())
-          .filter(Boolean)
-          .slice(0, 5) || [],
+        genres: cleanGenres,
         description: description.trim(),
         previewStart: start,
         audioUri,
@@ -239,16 +285,27 @@ export default function ArtistScreen() {
     }
   };
 
-  const deleteCustom = async (id: string, trackTitle: string) => {
-    if (isPlaying(id)) stopPlayback();
-    const meta = state.customs.find(c => c.id === id);
-    removeCustom(id);
+  const deleteTrack = async (track: Track) => {
+    if (isPlaying(track.id)) stopPlayback();
+
+    if (track.cloud) {
+      // titre publié dans le cloud : suppression serveur + retrait du deck
+      setMyCloud(prev => prev.filter(t => t.id !== track.id));
+      removeCloudTrack(track.id);
+      await deleteCloudTrack(track).catch(() => {});
+      toast(`« ${track.title} » retiré de Tune`);
+      return;
+    }
+
+    // titre local (mode hors-ligne)
+    const meta = state.customs.find(c => c.id === track.id);
+    removeCustom(track.id);
     if (Platform.OS !== "web" && meta) {
       FileSystem.deleteAsync(meta.audioUri, { idempotent: true }).catch(() => {});
       if (meta.coverUri)
         FileSystem.deleteAsync(meta.coverUri, { idempotent: true }).catch(() => {});
     }
-    toast(`« ${trackTitle} » retiré de Tune`);
+    toast(`« ${track.title} » retiré de Tune`);
   };
 
   return (
@@ -389,38 +446,29 @@ export default function ArtistScreen() {
           )}
 
           <Text style={styles.sectionTitle}>Mes titres publiés</Text>
-          {state.customs.length === 0 ? (
+          {myTracks.length === 0 ? (
             <Text style={styles.empty}>Aucun titre publié pour l'instant.</Text>
           ) : (
             <View style={{ gap: 16 }}>
-              {state.customs.map(meta => {
-                const track = customToTrack(meta);
-                const statusLabel =
-                  meta.status === "approved"
-                    ? "✓ En ligne"
-                    : meta.status === "pending"
-                      ? "⏳ En vérification"
-                      : `⛔ Masqué — ${meta.rejectionReason ?? "refusé"}`;
-                return (
-                  <TrackRow
-                    key={meta.id}
-                    track={track}
-                    subtitle={`${statusLabel} • ${meta.genres.join(", ")}`}
-                    actions={[
-                      {
-                        icon: "trash-outline",
-                        color: C.danger,
-                        onPress: () => deleteCustom(meta.id, meta.title),
-                      },
-                    ]}
-                  />
-                );
-              })}
+              {myTracks.map(track => (
+                <TrackRow
+                  key={track.id}
+                  track={track}
+                  subtitle={`✓ En ligne • ${track.genres.join(", ")}`}
+                  actions={[
+                    {
+                      icon: "trash-outline",
+                      color: C.danger,
+                      onPress: () => deleteTrack(track),
+                    },
+                  ]}
+                />
+              ))}
             </View>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-      <MiniPlayer queue={state.customs.map(customToTrack)} />
+      <MiniPlayer queue={myTracks} />
     </SafeAreaView>
   );
 }

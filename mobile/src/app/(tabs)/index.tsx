@@ -43,6 +43,7 @@ import {
   fetchFeaturedTracks,
 } from "../../lib/deezer";
 import { FEATURED_LABEL } from "../../lib/featured";
+import { cloudReady, fetchCloudTracks, reportCloudTrack } from "../../lib/cloud";
 import { listenLinks } from "../../lib/listen";
 import { shareTrack } from "../../lib/share";
 import { S } from "../../lib/strings";
@@ -76,7 +77,8 @@ function buzz(bucket: Bucket) {
 export default function DiscoverScreen() {
   const {
     state, hydrated, allTracks, bucketOf, affinity, decide, undoLastDecision,
-    registerTracks, reportTrack, completeOnboarding, resetBuckets,
+    registerTracks, setCloudTracks, reportTrack, hideTrack, completeOnboarding,
+    resetBuckets,
   } = useStore();
   const playback = usePlayback();
 
@@ -136,8 +138,10 @@ export default function DiscoverScreen() {
     if (hydrated && state.onboarded && !feedRequested.current) {
       feedRequested.current = true;
       loadFeed();
+      // catalogue partagé : les titres publiés par les artistes (tous les users)
+      if (cloudReady) fetchCloudTracks().then(setCloudTracks).catch(() => {});
     }
-  }, [hydrated, state.onboarded, loadFeed]);
+  }, [hydrated, state.onboarded, loadFeed, setCloudTracks]);
 
   // L'algo v1 : tri par affinité de genres + un peu de hasard stable
   const deck = useMemo(() => {
@@ -309,7 +313,13 @@ export default function DiscoverScreen() {
     const doReport = () => {
       stopPlayback();
       setShowInfo(false);
-      reportTrack(track.id);
+      if (track.cloud) {
+        // signalement serveur (visible par tous) + masquage local immédiat
+        reportCloudTrack(track.id);
+        hideTrack(track.id);
+      } else {
+        reportTrack(track.id);
+      }
       toast(S.discover.reportDone);
     };
     if (Platform.OS === "web") {
@@ -321,7 +331,7 @@ export default function DiscoverScreen() {
         { text: S.discover.reportConfirm, style: "destructive", onPress: doReport },
       ]);
     }
-  }, [deck, reportTrack]);
+  }, [deck, reportTrack, hideTrack]);
 
   // premier lancement : on amorce l'algo avec les goûts de l'utilisateur
   if (hydrated && !state.onboarded) {

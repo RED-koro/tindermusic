@@ -10,19 +10,46 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import "react-native-url-polyfill/auto";
 
-// ⚠️ À remplir avec les valeurs du projet Supabase d'Andy
+// Identifiants publics du projet Supabase (safe à embarquer, protégés par RLS)
 //    (Supabase → Project Settings → API)
-const SUPABASE_URL = "";
-const SUPABASE_ANON_KEY = "";
+const SUPABASE_URL = "https://ivswzeggkrrifdkxlvid.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2c3d6ZWdna3JyaWZka3hsdmlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3NzY3ODAsImV4cCI6MjA5OTM1Mjc4MH0.I_xvtKpuoujQs_gB-goXOIECY7u7Dey0WvMcCSlrfzg";
 
 /** true seulement quand les identifiants sont renseignés — sinon l'app
     fonctionne normalement en local + Deezer, sans backend. */
 export const supabaseReady = SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY.length > 0;
 
+/* Stockage résistant au rendu statique : pendant le prerender web (Node),
+   `window` n'existe pas et AsyncStorage plante. On no-op dans ce cas ;
+   sur appareil et dans le navigateur, on passe par AsyncStorage normalement. */
+const ssrSafeStorage = {
+  getItem: async (key: string) => {
+    if (typeof window === "undefined") return null;
+    try {
+      return await AsyncStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem: async (key: string, value: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      await AsyncStorage.setItem(key, value);
+    } catch {}
+  },
+  removeItem: async (key: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      await AsyncStorage.removeItem(key);
+    } catch {}
+  },
+};
+
 export const supabase: SupabaseClient | null = supabaseReady
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
-        storage: AsyncStorage,
+        storage: ssrSafeStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,

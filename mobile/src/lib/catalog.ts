@@ -47,6 +47,12 @@ export interface Track {
   featured?: boolean;
   album?: string;
   previewUrl?: string;
+  /** Titre publié dans le cloud (Supabase) — visible par tous les utilisateurs */
+  cloud?: boolean;
+  /** Chemins de stockage, pour la suppression par l'artiste propriétaire */
+  cloudAudioPath?: string;
+  cloudCoverPath?: string | null;
+  owner?: string;
 }
 
 export function hashCode(str: string): number {

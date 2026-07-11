@@ -116,6 +116,12 @@ interface StoreValue {
   undoLastDecision: () => void;
   /** Rend des titres Deezer (flux, recherche) résolubles via byId le temps de la session */
   registerTracks: (tracks: Track[]) => void;
+  /** Remplace le catalogue cloud partagé (chargé depuis Supabase) */
+  setCloudTracks: (tracks: Track[]) => void;
+  /** Ajoute un titre publié et le met en tête du deck */
+  addCloudTrack: (track: Track) => void;
+  /** Retire un titre cloud du deck (après suppression par l'artiste) */
+  removeCloudTrack: (id: string) => void;
   /** Retire le titre de tous les buckets (retour dans Découvrir) */
   restore: (id: string) => void;
   /** Bascule aimé <-> non classé (recherche, bibliothèque) */
@@ -124,6 +130,7 @@ interface StoreValue {
   publish: (meta: CustomTrackMeta) => void;
   removeCustom: (id: string) => void;
   reportTrack: (id: string, reason?: string) => void;
+  hideTrack: (id: string) => void;
   completeOnboarding: (genres: string[]) => void;
   resetBuckets: () => void;
   resetData: () => void;
@@ -167,6 +174,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const skipPersist = useRef(true);
   // titres Deezer vus pendant la session (flux Découvrir, recherche)
   const [sessionTracks, setSessionTracks] = useState<Record<string, Track>>({});
+  // titres publiés par les artistes dans le cloud (catalogue partagé, session)
+  const [cloudTracks, setCloudTracksState] = useState<Track[]>([]);
+
+  const setCloudTracks = useCallback((tracks: Track[]) => {
+    setCloudTracksState(tracks);
+  }, []);
+
+  /** Ajoute un titre fraîchement publié et le met en tête du deck. */
+  const addCloudTrack = useCallback((track: Track) => {
+    setCloudTracksState(prev => [track, ...prev.filter(t => t.id !== track.id)]);
+    setState(prev => ({ ...prev, freshId: track.id }));
+  }, []);
+
+  /** Retire un titre cloud du deck (l'artiste vient de le supprimer). */
+  const removeCloudTrack = useCallback((id: string) => {
+    setCloudTracksState(prev => prev.filter(t => t.id !== id));
+    setState(prev => ({
+      ...prev,
+      freshId: prev.freshId === id ? null : prev.freshId,
+    }));
+  }, []);
 
   const registerTracks = useCallback((tracks: Track[]) => {
     setSessionTracks(prev => {
@@ -234,11 +262,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => setOnListenChunk(null);
   }, []);
 
-  // seuls les titres validés par la modération sont proposés aux auditeurs
-  const allTracks = useMemo(
-    () => state.customs.filter(c => c.status === "approved").map(customToTrack),
-    [state.customs]
-  );
+  // titres proposés aux auditeurs : locaux validés (mode hors-ligne) + cloud.
+  // dédup par id (un titre cloud ne doit pas apparaître deux fois).
+  const allTracks = useMemo(() => {
+    const locals = state.customs
+      .filter(c => c.status === "approved")
+      .map(customToTrack);
+    const seen = new Set(locals.map(t => t.id));
+    return [...locals, ...cloudTracks.filter(t => !seen.has(t.id))];
+  }, [state.customs, cloudTracks]);
   const byId = useMemo(
     () => ({
       ...sessionTracks,
@@ -292,7 +324,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             artist: track.artist,
             delta,
           },
-          savedDeezer: track.deezer
+          savedDeezer: track.deezer || track.cloud
             ? { ...prev.savedDeezer, [track.id]: track }
             : prev.savedDeezer,
         };
@@ -340,7 +372,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             liked: [...next.liked, track.id],
             genreScores: addScores(prev.genreScores, track.genres, 2),
             artistScores: addScores(prev.artistScores, [track.artist], 2),
-            savedDeezer: track.deezer
+            savedDeezer: track.deezer || track.cloud
               ? { ...prev.savedDeezer, [track.id]: track }
               : prev.savedDeezer,
           };
@@ -355,7 +387,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         liked: [...next.liked, track.id],
         genreScores: addScores(prev.genreScores, track.genres, 2),
         artistScores: addScores(prev.artistScores, [track.artist], 2),
-        savedDeezer: track.deezer
+        savedDeezer: track.deezer || track.cloud
           ? { ...prev.savedDeezer, [track.id]: track }
           : prev.savedDeezer,
       };
@@ -412,6 +444,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  /** Masque un titre côté client (signalement d'un titre cloud) : il quitte le
+      deck sans toucher aux scores. Le serveur, lui, gère le statut global. */
+  const hideTrack = useCallback((id: string) => {
+    setState(prev => {
+      if (prev.disliked.includes(id)) return prev;
+      return {
+        ...withoutId(prev, id),
+        disliked: [...prev.disliked, id],
+        freshId: prev.freshId === id ? null : prev.freshId,
+        lastDecision: prev.lastDecision?.id === id ? null : prev.lastDecision,
+      };
+    });
+  }, []);
+
   /** Fin de l'onboarding : les genres choisis amorcent l'algo (+3 chacun) */
   const completeOnboarding = useCallback((genres: string[]) => {
     setState(prev => ({
@@ -440,19 +486,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       decide,
       undoLastDecision,
       registerTracks,
+      setCloudTracks,
+      addCloudTrack,
+      removeCloudTrack,
       restore,
       toggleLiked,
       moveToLiked,
       publish,
       removeCustom,
       reportTrack,
+      hideTrack,
       completeOnboarding,
       resetBuckets,
       resetData,
     }),
     [state, hydrated, allTracks, byId, bucketOf, affinity, decide, undoLastDecision,
-     registerTracks, restore, toggleLiked, moveToLiked, publish, removeCustom,
-     reportTrack, completeOnboarding, resetBuckets, resetData]
+     registerTracks, setCloudTracks, addCloudTrack, removeCloudTrack, restore,
+     toggleLiked, moveToLiked, publish, removeCustom, reportTrack, hideTrack,
+     completeOnboarding, resetBuckets, resetData]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
