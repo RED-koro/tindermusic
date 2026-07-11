@@ -7,7 +7,6 @@ import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Platform,
   Pressable,
@@ -43,7 +42,6 @@ import {
   fetchFeaturedTracks,
 } from "../../lib/deezer";
 import { FEATURED_LABEL } from "../../lib/featured";
-import { cloudReady, fetchCloudTracks, reportCloudTrack } from "../../lib/cloud";
 import { listenLinks } from "../../lib/listen";
 import { shareTrack } from "../../lib/share";
 import { S } from "../../lib/strings";
@@ -76,9 +74,8 @@ function buzz(bucket: Bucket) {
 
 export default function DiscoverScreen() {
   const {
-    state, hydrated, allTracks, bucketOf, affinity, decide, undoLastDecision,
-    registerTracks, setCloudTracks, reportTrack, hideTrack, completeOnboarding,
-    resetBuckets,
+    state, hydrated, bucketOf, affinity, decide, undoLastDecision,
+    registerTracks, completeOnboarding, resetBuckets,
   } = useStore();
   const playback = usePlayback();
 
@@ -138,14 +135,12 @@ export default function DiscoverScreen() {
     if (hydrated && state.onboarded && !feedRequested.current) {
       feedRequested.current = true;
       loadFeed();
-      // catalogue partagé : les titres publiés par les artistes (tous les users)
-      if (cloudReady) fetchCloudTracks().then(setCloudTracks).catch(() => {});
     }
-  }, [hydrated, state.onboarded, loadFeed, setCloudTracks]);
+  }, [hydrated, state.onboarded, loadFeed]);
 
   // L'algo v1 : tri par affinité de genres + un peu de hasard stable
   const deck = useMemo(() => {
-    return [...allTracks, ...feed]
+    return [...feed]
       .filter(t => !bucketOf(t.id))
       .filter(
         t => genreFilter.length === 0 || t.genres.some(g => genreFilter.includes(g))
@@ -153,14 +148,13 @@ export default function DiscoverScreen() {
       .map(t => ({
         t,
         s:
-          (state.freshId === t.id ? 1000 : 0) +
           (t.featured ? 2.5 : 0) + // artistes maison mis en avant
           affinity(t) +
           ((hashCode(t.id + sessionSeed) % 100) / 100) * 1.5,
       }))
       .sort((a, b) => b.s - a.s)
       .map(x => x.t);
-  }, [allTracks, feed, bucketOf, affinity, state.freshId, genreFilter]);
+  }, [feed, bucketOf, affinity, genreFilter]);
 
   const top: Track | undefined = deck[0];
   const under: Track | undefined = deck[1];
@@ -307,32 +301,6 @@ export default function DiscoverScreen() {
 
   const isTopPlaying = !!top && playback.playingId === top.id;
 
-  const reportTop = useCallback(() => {
-    const track = deck[0];
-    if (!track?.custom) return;
-    const doReport = () => {
-      stopPlayback();
-      setShowInfo(false);
-      if (track.cloud) {
-        // signalement serveur (visible par tous) + masquage local immédiat
-        reportCloudTrack(track.id);
-        hideTrack(track.id);
-      } else {
-        reportTrack(track.id);
-      }
-      toast(S.discover.reportDone);
-    };
-    if (Platform.OS === "web") {
-      // Alert à boutons non supporté sur web
-      if (window.confirm(S.discover.reportMsg(track.title))) doReport();
-    } else {
-      Alert.alert(S.discover.reportTitle, S.discover.reportMsg(track.title), [
-        { text: S.discover.cancel, style: "cancel" },
-        { text: S.discover.reportConfirm, style: "destructive", onPress: doReport },
-      ]);
-    }
-  }, [deck, reportTrack, hideTrack]);
-
   // premier lancement : on amorce l'algo avec les goûts de l'utilisateur
   if (hydrated && !state.onboarded) {
     return <Onboarding onDone={completeOnboarding} />;
@@ -407,11 +375,7 @@ export default function DiscoverScreen() {
                 onToggleInfo={() => setShowInfo(v => !v)}
               />
               {showInfo && (
-                <InfoBack
-                  track={top}
-                  onClose={() => setShowInfo(false)}
-                  onReport={reportTop}
-                />
+                <InfoBack track={top} onClose={() => setShowInfo(false)} />
               )}
               <Animated.View style={[styles.badge, styles.badgeLike, likeStyle]}>
                 <Text style={[styles.badgeText, { color: "#5bffa0" }]}>{S.discover.like}</Text>
@@ -613,55 +577,38 @@ function CardFace({
   );
 }
 
-function InfoBack({
-  track,
-  onClose,
-  onReport,
-}: {
-  track: Track;
-  onClose: () => void;
-  onReport?: () => void;
-}) {
+function InfoBack({ track, onClose }: { track: Track; onClose: () => void }) {
   return (
     <View style={styles.back}>
       <Text style={styles.backTitle}>{track.title}</Text>
       <KV label={S.discover.kvArtist} value={track.artist} />
       {track.album ? <KV label={S.discover.kvAlbum} value={track.album} /> : null}
       <KV label={S.discover.kvGenres} value={track.genres.join(", ")} />
-      {track.custom ? (
-        <KV label={S.discover.kvSource} value={S.discover.srcCustom} />
-      ) : track.featured ? (
-        <KV label={S.discover.kvSource} value={S.discover.srcFeatured} />
-      ) : (
-        <KV label={S.discover.kvSource} value="Deezer" />
-      )}
+      <KV
+        label={S.discover.kvSource}
+        value={track.featured ? S.discover.srcFeatured : "Deezer"}
+      />
       <KV label={S.discover.kvExcerpt} value={`${PREVIEW_SECONDS} ${S.discover.seconds}`} />
       <Text style={styles.backText}>
-        {track.custom
-          ? track.description
-            ? `« ${track.description} »  — ${track.artist}`
-            : S.discover.backCustom(track.artist)
-          : track.featured
-            ? S.discover.backFeatured(track.artist)
-            : S.discover.backDeezer(track.genres[0] ?? S.discover.chartsFallback)}
+        {track.featured
+          ? S.discover.backFeatured(track.artist)
+          : S.discover.backDeezer(track.genres[0] ?? S.discover.chartsFallback)}
       </Text>
-      {!track.custom && (
-        <View style={styles.listenBox}>
-          <Text style={styles.listenLabel}>{S.discover.listenOn}</Text>
-          <View style={styles.listenRow}>
-            {listenLinks(track).map(l => (
-              <Pressable
-                key={l.id}
-                style={styles.listenChip}
-                onPress={() => Linking.openURL(l.url)}
-              >
-                <Ionicons name={l.icon as never} size={15} color={C.text} />
-                <Text style={styles.listenChipText}>{l.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+      <View style={styles.listenBox}>
+        <Text style={styles.listenLabel}>{S.discover.listenOn}</Text>
+        <View style={styles.listenRow}>
+          {listenLinks(track).map(l => (
+            <Pressable
+              key={l.id}
+              style={styles.listenChip}
+              onPress={() => Linking.openURL(l.url)}
+            >
+              <Ionicons name={l.icon as never} size={15} color={C.text} />
+              <Text style={styles.listenChipText}>{l.label}</Text>
+            </Pressable>
+          ))}
         </View>
-      )}
+      </View>
       <View style={styles.backActionsRow}>
         {track.deezer && track.artistId ? (
           <Pressable
@@ -688,12 +635,6 @@ function InfoBack({
         </Pressable>
       </View>
       <View style={styles.backFooter}>
-        {track.custom && onReport && (
-          <Pressable testID="btn-report" style={styles.reportBtn} onPress={onReport}>
-            <Ionicons name="flag-outline" size={15} color={C.danger} />
-            <Text style={{ color: C.danger, fontSize: 13.5 }}>{S.discover.reportTrack}</Text>
-          </Pressable>
-        )}
         <Pressable style={styles.closeBack} onPress={onClose}>
           <Text style={{ color: C.text }}>{S.discover.close}</Text>
         </Pressable>
@@ -843,13 +784,6 @@ const styles = StyleSheet.create({
   },
   backActionText: { color: C.accent, fontSize: 13 },
   backFooter: { marginTop: "auto", alignItems: "center", gap: 6 },
-  reportBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-  },
   closeBack: {
     paddingHorizontal: 26,
     paddingVertical: 10,

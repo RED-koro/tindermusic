@@ -14,7 +14,8 @@ Docs versionnées : https://docs.expo.dev/versions/v54.0.0/
 - Navigation : **expo-router** (`src/app/` = routes ; `main: "expo-router/entry"`).
   Pas de React Navigation manuel, pas de `App.tsx` racine.
 - Audio : **expo-audio** (pas expo-av, déprécié).
-- État : `src/lib/store.tsx` (Context + AsyncStorage). Modération : `src/lib/moderation.ts`.
+- État : `src/lib/store.tsx` (Context + AsyncStorage).
+- Musique : 100 % Deezer (charts + artistes maison `featured.ts` + recherche). Pas d'upload d'artiste (retiré le 11/07/2026) ; les nouveaux artistes viendront plus tard via une API d'ingestion côté serveur.
 - Extraits du catalogue : assets M4A pré-générés (`scripts/build-previews.sh`).
 
 ## Voix éditoriale — NE PAS ASEPTISER

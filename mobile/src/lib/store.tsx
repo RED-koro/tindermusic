@@ -1,6 +1,5 @@
 /* État global de Tune : buckets (aimés / à revoir / pas pour moi), scores de
-   genres (l'« algo » v1), titres publiés par les artistes et modération.
-   Persisté dans AsyncStorage. */
+   genres et d'artistes (l'« algo » v2), bibliothèque. Persisté dans AsyncStorage. */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
@@ -13,32 +12,9 @@ import React, {
   useState,
 } from "react";
 import { setOnListenChunk } from "./audio";
-import { hashCode, SCENES, Track } from "./catalog";
-import { REPORTS_TO_HIDE } from "./moderation";
+import { Track } from "./catalog";
 
 export type Bucket = "liked" | "later" | "disliked";
-
-/** Statut de modération d'un titre publié.
-    "pending" est réservé à la revue serveur (V2) ; en local, la validation
-    automatique tranche tout de suite entre approved et rejected. */
-export type PublicationStatus = "pending" | "approved" | "rejected";
-
-export interface CustomTrackMeta {
-  id: string;
-  title: string;
-  artist: string;
-  genres: string[];
-  description: string;
-  previewStart: number;
-  audioUri: string;
-  coverUri: string | null;
-  addedAt: number;
-  status: PublicationStatus;
-  rejectionReason?: string;
-  reports: number;
-  /** Motifs donnés par les auditeurs — exploitables par la modération (V2) */
-  reportReasons?: string[];
-}
 
 interface LastDecision {
   id: string;
@@ -57,11 +33,8 @@ interface TuneState {
   /** Algo v2 : affinité par artiste, en plus des genres */
   artistScores: Record<string, number>;
   swipes: number;
-  customs: CustomTrackMeta[];
   /** Métadonnées des titres Deezer classés (bibliothèque persistante) */
   savedDeezer: Record<string, Track>;
-  /** Dernier titre publié : mis en tête du deck Découvrir */
-  freshId: string | null;
   /** Dernier swipe, pour pouvoir l'annuler */
   lastDecision: LastDecision | null;
   /** Onboarding "choisis tes genres" terminé (amorce l'algo au 1er lancement) */
@@ -77,9 +50,7 @@ const EMPTY: TuneState = {
   genreScores: {},
   artistScores: {},
   swipes: 0,
-  customs: [],
   savedDeezer: {},
-  freshId: null,
   lastDecision: null,
   onboarded: false,
   stats: { listenSeconds: 0 },
@@ -87,28 +58,9 @@ const EMPTY: TuneState = {
 
 const STORAGE_KEY = "tune-state-v1";
 
-export function customToTrack(meta: CustomTrackMeta): Track {
-  const seed = hashCode(meta.id);
-  return {
-    id: meta.id,
-    title: meta.title,
-    artist: meta.artist,
-    genres: meta.genres,
-    scene: SCENES[seed % SCENES.length],
-    hue: seed % 360,
-    hue2: (seed * 7) % 360,
-    custom: true,
-    description: meta.description,
-    previewStart: meta.previewStart,
-    audioUri: meta.audioUri,
-    coverUri: meta.coverUri,
-  };
-}
-
 interface StoreValue {
   state: TuneState;
   hydrated: boolean;
-  allTracks: Track[];
   byId: Record<string, Track>;
   bucketOf: (id: string) => Bucket | null;
   affinity: (track: Track) => number;
@@ -116,21 +68,11 @@ interface StoreValue {
   undoLastDecision: () => void;
   /** Rend des titres Deezer (flux, recherche) résolubles via byId le temps de la session */
   registerTracks: (tracks: Track[]) => void;
-  /** Remplace le catalogue cloud partagé (chargé depuis Supabase) */
-  setCloudTracks: (tracks: Track[]) => void;
-  /** Ajoute un titre publié et le met en tête du deck */
-  addCloudTrack: (track: Track) => void;
-  /** Retire un titre cloud du deck (après suppression par l'artiste) */
-  removeCloudTrack: (id: string) => void;
   /** Retire le titre de tous les buckets (retour dans Découvrir) */
   restore: (id: string) => void;
   /** Bascule aimé <-> non classé (recherche, bibliothèque) */
   toggleLiked: (track: Track) => void;
   moveToLiked: (track: Track) => void;
-  publish: (meta: CustomTrackMeta) => void;
-  removeCustom: (id: string) => void;
-  reportTrack: (id: string, reason?: string) => void;
-  hideTrack: (id: string) => void;
   completeOnboarding: (genres: string[]) => void;
   resetBuckets: () => void;
   resetData: () => void;
@@ -174,27 +116,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const skipPersist = useRef(true);
   // titres Deezer vus pendant la session (flux Découvrir, recherche)
   const [sessionTracks, setSessionTracks] = useState<Record<string, Track>>({});
-  // titres publiés par les artistes dans le cloud (catalogue partagé, session)
-  const [cloudTracks, setCloudTracksState] = useState<Track[]>([]);
-
-  const setCloudTracks = useCallback((tracks: Track[]) => {
-    setCloudTracksState(tracks);
-  }, []);
-
-  /** Ajoute un titre fraîchement publié et le met en tête du deck. */
-  const addCloudTrack = useCallback((track: Track) => {
-    setCloudTracksState(prev => [track, ...prev.filter(t => t.id !== track.id)]);
-    setState(prev => ({ ...prev, freshId: track.id }));
-  }, []);
-
-  /** Retire un titre cloud du deck (l'artiste vient de le supprimer). */
-  const removeCloudTrack = useCallback((id: string) => {
-    setCloudTracksState(prev => prev.filter(t => t.id !== id));
-    setState(prev => ({
-      ...prev,
-      freshId: prev.freshId === id ? null : prev.freshId,
-    }));
-  }, []);
 
   const registerTracks = useCallback((tracks: Track[]) => {
     setSessionTracks(prev => {
@@ -211,10 +132,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       .then(raw => {
         if (!raw) return;
         const parsed = JSON.parse(raw);
-        // migration : les titres publiés avant la modération sont considérés validés
-        const customs: CustomTrackMeta[] = (parsed.customs || []).map(
-          (c: Partial<CustomTrackMeta>) => ({ status: "approved", reports: 0, ...c })
-        );
         // migration : les utilisateurs qui ont déjà swipé passent l'onboarding
         const onboarded =
           parsed.onboarded ?? ((parsed.swipes || 0) > 0 || (parsed.liked || []).length > 0);
@@ -234,7 +151,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         for (const [id, t] of Object.entries(parsed.savedDeezer || {})) {
           if (referenced.has(id)) savedDeezer[id] = t as Track;
         }
-        setState({ ...EMPTY, ...parsed, customs, onboarded, disliked, savedDeezer });
+        setState({ ...EMPTY, ...parsed, onboarded, disliked, savedDeezer });
       })
       .catch(() => {})
       .finally(() => setHydrated(true));
@@ -262,22 +179,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return () => setOnListenChunk(null);
   }, []);
 
-  // titres proposés aux auditeurs : locaux validés (mode hors-ligne) + cloud.
-  // dédup par id (un titre cloud ne doit pas apparaître deux fois).
-  const allTracks = useMemo(() => {
-    const locals = state.customs
-      .filter(c => c.status === "approved")
-      .map(customToTrack);
-    const seen = new Set(locals.map(t => t.id));
-    return [...locals, ...cloudTracks.filter(t => !seen.has(t.id))];
-  }, [state.customs, cloudTracks]);
+  // résolution d'un titre par son id (mini-player, bibliothèque) : titres vus
+  // en session (Deezer) + métadonnées des titres classés persistées.
   const byId = useMemo(
-    () => ({
-      ...sessionTracks,
-      ...state.savedDeezer,
-      ...Object.fromEntries(allTracks.map(t => [t.id, t])),
-    }),
-    [allTracks, sessionTracks, state.savedDeezer]
+    () => ({ ...sessionTracks, ...state.savedDeezer }),
+    [sessionTracks, state.savedDeezer]
   );
 
   const bucketOf = useCallback(
@@ -316,7 +222,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           swipes: prev.swipes + 1,
           genreScores: addScores(decayScores(prev.genreScores), track.genres, delta),
           artistScores: addScores(decayScores(prev.artistScores), [track.artist], delta),
-          freshId: prev.freshId === track.id ? null : prev.freshId,
           lastDecision: {
             id: track.id,
             bucket,
@@ -324,7 +229,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             artist: track.artist,
             delta,
           },
-          savedDeezer: track.deezer || track.cloud
+          savedDeezer: track.deezer
             ? { ...prev.savedDeezer, [track.id]: track }
             : prev.savedDeezer,
         };
@@ -347,7 +252,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         artistScores: last.artist
           ? addScores(prev.artistScores, [last.artist], -delta)
           : prev.artistScores,
-        freshId: last.id,
         lastDecision: null,
       };
     });
@@ -372,7 +276,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             liked: [...next.liked, track.id],
             genreScores: addScores(prev.genreScores, track.genres, 2),
             artistScores: addScores(prev.artistScores, [track.artist], 2),
-            savedDeezer: track.deezer || track.cloud
+            savedDeezer: track.deezer
               ? { ...prev.savedDeezer, [track.id]: track }
               : prev.savedDeezer,
           };
@@ -387,73 +291,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         liked: [...next.liked, track.id],
         genreScores: addScores(prev.genreScores, track.genres, 2),
         artistScores: addScores(prev.artistScores, [track.artist], 2),
-        savedDeezer: track.deezer || track.cloud
+        savedDeezer: track.deezer
           ? { ...prev.savedDeezer, [track.id]: track }
           : prev.savedDeezer,
-      };
-    });
-  }, []);
-
-  const publish = useCallback((meta: CustomTrackMeta) => {
-    setState(prev => ({
-      ...prev,
-      customs: [...prev.customs, meta],
-      freshId: meta.id,
-    }));
-  }, []);
-
-  const removeCustom = useCallback((id: string) => {
-    setState(prev => ({
-      ...withoutId(prev, id),
-      customs: prev.customs.filter(c => c.id !== id),
-      freshId: prev.freshId === id ? null : prev.freshId,
-    }));
-  }, []);
-
-  /** Signalement par un auditeur : au-delà du seuil, le titre est masqué
-      partout (deck + bibliothèque). En V2, le signalement partira au serveur. */
-  const reportTrack = useCallback((id: string, reason?: string) => {
-    setState(prev => {
-      const meta = prev.customs.find(c => c.id === id);
-      if (!meta) return prev;
-      const reports = meta.reports + 1;
-      const hidden = reports >= REPORTS_TO_HIDE;
-      const base = hidden ? withoutId(prev, id) : prev;
-      return {
-        ...base,
-        customs: prev.customs.map(c =>
-          c.id === id
-            ? {
-                ...c,
-                reports,
-                reportReasons: reason
-                  ? [...(c.reportReasons ?? []), reason]
-                  : c.reportReasons,
-                status: hidden ? "rejected" : c.status,
-                rejectionReason: hidden
-                  ? reason
-                    ? `Signalé : ${reason}`
-                    : "Signalé par des auditeurs"
-                  : c.rejectionReason,
-              }
-            : c
-        ),
-        freshId: hidden && prev.freshId === id ? null : prev.freshId,
-        lastDecision: hidden && prev.lastDecision?.id === id ? null : prev.lastDecision,
-      };
-    });
-  }, []);
-
-  /** Masque un titre côté client (signalement d'un titre cloud) : il quitte le
-      deck sans toucher aux scores. Le serveur, lui, gère le statut global. */
-  const hideTrack = useCallback((id: string) => {
-    setState(prev => {
-      if (prev.disliked.includes(id)) return prev;
-      return {
-        ...withoutId(prev, id),
-        disliked: [...prev.disliked, id],
-        freshId: prev.freshId === id ? null : prev.freshId,
-        lastDecision: prev.lastDecision?.id === id ? null : prev.lastDecision,
       };
     });
   }, []);
@@ -472,37 +312,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetData = useCallback(() => {
-    setState(prev => ({ ...EMPTY, customs: prev.customs }));
+    setState({ ...EMPTY });
   }, []);
 
   const value = useMemo<StoreValue>(
     () => ({
       state,
       hydrated,
-      allTracks,
       byId,
       bucketOf,
       affinity,
       decide,
       undoLastDecision,
       registerTracks,
-      setCloudTracks,
-      addCloudTrack,
-      removeCloudTrack,
       restore,
       toggleLiked,
       moveToLiked,
-      publish,
-      removeCustom,
-      reportTrack,
-      hideTrack,
       completeOnboarding,
       resetBuckets,
       resetData,
     }),
-    [state, hydrated, allTracks, byId, bucketOf, affinity, decide, undoLastDecision,
-     registerTracks, setCloudTracks, addCloudTrack, removeCloudTrack, restore,
-     toggleLiked, moveToLiked, publish, removeCustom, reportTrack, hideTrack,
+    [state, hydrated, byId, bucketOf, affinity, decide, undoLastDecision,
+     registerTracks, restore, toggleLiked, moveToLiked,
      completeOnboarding, resetBuckets, resetData]
   );
 

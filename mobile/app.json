@@ -36,12 +36,6 @@
           "imageWidth": 76
         }
       ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Tune accède à ta photothèque pour choisir la pochette de tes titres."
-        }
-      ],
       "expo-audio",
       "expo-font",
       "expo-localization"

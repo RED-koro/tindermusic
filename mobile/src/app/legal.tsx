@@ -55,9 +55,8 @@ export default function LegalScreen() {
           <Text style={styles.p}>
             • Tune ne collecte aucune donnée personnelle : pas de compte, pas
             de tracker, pas de publicité.{"\n"}
-            • Tes goûts (swipes, scores de genres et d'artistes), ta
-            bibliothèque et les titres que tu publies sont stockés uniquement
-            sur ton appareil.{"\n"}
+            • Tes goûts (swipes, scores de genres et d'artistes) et ta
+            bibliothèque sont stockés uniquement sur ton appareil.{"\n"}
             • Les recherches et le chargement des extraits interrogent l'API
             Deezer ; ces requêtes sont soumises à la politique de
             confidentialité de Deezer.{"\n"}
@@ -66,17 +65,6 @@ export default function LegalScreen() {
           </Text>
         </Section>
 
-        <Section title="Contenus publiés par les artistes">
-          <Text style={styles.p}>
-            En publiant un titre, l'artiste certifie détenir tous les droits
-            sur le son et l'image, et accepte la charte de contenu (pas de
-            contenu haineux, sexuel explicite, violent ou illégal). Chaque
-            publication passe une vérification automatique ; tout titre peut
-            être signalé par les auditeurs et est alors retiré. Les contenus
-            enfreignant ces règles sont supprimés et les abus répétés
-            entraînent la suspension de la publication.
-          </Text>
-        </Section>
 
         <Section title="Contact">
           <Text style={styles.p}>

@@ -23,28 +23,17 @@ import { S } from "../../lib/strings";
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const [placeholder] = useState(searchPlaceholder);
-  const [deezerResults, setDeezerResults] = useState<Track[]>([]);
+  const [results, setResults] = useState<Track[]>([]);
   const [searching, setSearching] = useState(false);
-  const { allTracks, bucketOf, toggleLiked, registerTracks } = useStore();
+  const { bucketOf, toggleLiked, registerTracks } = useStore();
   const requestId = useRef(0);
 
-  const localResults = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return allTracks.filter(
-      t =>
-        t.title.toLowerCase().includes(q) ||
-        t.artist.toLowerCase().includes(q) ||
-        t.genres.some(g => g.toLowerCase().includes(q))
-    );
-  }, [query, allTracks]);
-
-  // recherche Deezer avec debounce de 450 ms
+  // recherche dans tout le catalogue Deezer, avec debounce de 450 ms
   useEffect(() => {
     const q = query.trim();
     const id = ++requestId.current;
     if (q.length < 2) {
-      setDeezerResults([]);
+      setResults([]);
       setSearching(false);
       return;
     }
@@ -54,20 +43,15 @@ export default function SearchScreen() {
         const found = await searchDeezer(q);
         if (id !== requestId.current) return; // requête obsolète
         registerTracks(found);
-        setDeezerResults(found);
+        setResults(found);
       } catch {
-        if (id === requestId.current) setDeezerResults([]);
+        if (id === requestId.current) setResults([]);
       } finally {
         if (id === requestId.current) setSearching(false);
       }
     }, 450);
     return () => clearTimeout(timer);
   }, [query, registerTracks]);
-
-  const results = useMemo(() => {
-    const seen = new Set(localResults.map(t => t.id));
-    return [...localResults, ...deezerResults.filter(t => !seen.has(t.id))];
-  }, [localResults, deezerResults]);
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>

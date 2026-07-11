@@ -103,10 +103,6 @@ export default function ProfileScreen() {
           </>
         )}
 
-        <Pressable style={styles.artistBtn} onPress={() => router.push("/artist")}>
-          <Text style={styles.artistBtnText}>{S.profile.artistSpace}</Text>
-        </Pressable>
-
         <Pressable style={styles.legalBtn} onPress={() => router.push("/legal")}>
           <Text style={styles.legalText}>{S.profile.legal}</Text>
         </Pressable>
@@ -200,16 +196,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   genreFill: { height: "100%", borderRadius: 4, backgroundColor: C.accent2 },
-  artistBtn: {
-    marginTop: 8,
-    padding: 14,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: "rgba(139,92,246,.45)",
-    backgroundColor: "rgba(139,92,246,.14)",
-    alignItems: "center",
-  },
-  artistBtnText: { color: C.accent, fontSize: 14.5, fontWeight: "700" },
   legalBtn: { alignSelf: "center", paddingVertical: 4 },
   legalText: { color: C.muted, fontSize: 13, textDecorationLine: "underline" },
   resetBtn: {

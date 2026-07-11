@@ -151,18 +151,3 @@ export const profileTagline = (swipes: number) => {
   if (swipes < 100) return `${swipes} swipes. The algorithm learns fast, thanks to you.`;
   return `${swipes} swipes. At this point, it's expertise.`;
 };
-
-/* ---- Espace artiste ---- */
-
-export const publishToast = (title: string) =>
-  pick(
-    isFr
-      ? [
-          `« ${title} » est en ligne. Que le swipe commence.`,
-          `« ${title} » est parti rencontrer son public.`,
-        ]
-      : [
-          `"${title}" is live. Let the swiping begin.`,
-          `"${title}" just left to meet its audience.`,
-        ]
-  );

@@ -49,29 +49,14 @@ Sur web, l'API Deezer n'envoie pas de CORS → JSONP (téléphone : fetch direct
 
 ## Architecture
 
-- `src/app/` — écrans (expo-router) : `(tabs)/` Découvrir, Bibliothèque, Rechercher, Profil + `artist.tsx` (Espace artiste)
-- `src/lib/` — `catalog.ts` (types), `featured.ts` (artistes maison), `deezer.ts` (API musique), `store.tsx` (état + algo v2, persisté en AsyncStorage), `audio.ts` (lecture des extraits, expo-audio), `covers.tsx` (pochettes SVG pour les uploads sans image), `moderation.ts` (filtres de publication)
+- `src/app/` — écrans (expo-router) : `(tabs)/` Découvrir, Bibliothèque, Rechercher, Profil + `artist-view.tsx` (page d'un artiste Deezer) + `legal.tsx`
+- `src/lib/` — `catalog.ts` (types), `featured.ts` (artistes maison), `deezer.ts` (API musique), `store.tsx` (état + algo v2, persisté en AsyncStorage), `audio.ts` (lecture des extraits, expo-audio), `covers.tsx` (pochettes SVG de secours), `i18n.ts` + `strings.ts` + `voice.ts` (FR/EN)
 - `src/components/` — `TrackRow`, `MiniPlayer`
-- Les fichiers importés par les artistes sont copiés dans le dossier documents de l'app (`uploads/`)
 
-## Modération des publications (v1)
-
-Trois lignes de défense dans `src/lib/moderation.ts` :
-
-1. **Validation automatique à la publication** : textes filtrés (mots interdits
-   FR/EN avec normalisation anti-contournement accents/leetspeak), format et
-   durée réelle du fichier audio vérifiés (15 s – 15 min), dimensions de la
-   pochette contrôlées. Refus bloquant avec motifs affichés à l'artiste.
-2. **Charte artiste obligatoire** (droits sur le contenu, règles de contenu) —
-   case à cocher avant publication.
-3. **Signalement auditeur** (bouton au dos de la carte) : le titre signalé est
-   masqué du deck et de la bibliothèque (statut `rejected`).
-
-Chaque titre a un statut `pending | approved | rejected` : la V2 (backend)
-branchera la revue humaine/IA (dont détection NSFW des pochettes et analyse du
-contenu audio — transcription des paroles, empreinte acoustique anti-piratage —
-impossibles à faire sérieusement côté client) en passant les publications par
-`pending`.
+> **Pas d'upload d'artiste.** Le modèle « l'artiste publie son fichier » a été
+> retiré (11/07/2026) : trop risqué (c'est ce qui a tué la plupart des apps du
+> genre). Les nouveaux artistes seront amenés plus tard via une **API
+> d'ingestion côté serveur** (Spotify envisagé), pas par upload utilisateur.
 
 ## Publication sur les stores (EAS Build)
 
@@ -100,6 +85,6 @@ Avant la soumission :
 
 ## Étape suivante (V2)
 
-Backend (ex. Supabase/Firebase) pour que les titres publiés par un artiste
-soient visibles par **tous** les utilisateurs : upload des fichiers dans un
-storage, catalogue en base, comptes artiste/auditeur, et modération centralisée.
+Ingestion des nouveaux artistes côté serveur (API type Spotify) alimentant un
+catalogue partagé, plutôt que par upload utilisateur. Comptes optionnels pour
+retrouver sa bibliothèque en changeant d'appareil.
