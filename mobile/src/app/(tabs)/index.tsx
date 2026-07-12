@@ -41,6 +41,7 @@ import {
   fetchDiscoveryFeed,
   fetchFeaturedTracks,
 } from "../../lib/deezer";
+import { curatedBoost, fetchBoostedArtists } from "../../lib/boost";
 import { FEATURED_LABEL } from "../../lib/featured";
 import { fairnessBonus } from "../../lib/fairness";
 import { listenLinks } from "../../lib/listen";
@@ -87,6 +88,8 @@ export default function DiscoverScreen() {
 
   // Flux Deezer : vraie musique, chargée selon les genres préférés de l'user
   const [feed, setFeed] = useState<Track[]>([]);
+  // Boost éditorial partagé (Supabase) : artistId Deezer → poids. Vide si non configuré/hors-ligne
+  const [boosts, setBoosts] = useState<Map<number, number>>(new Map());
   // Filtres du deck (session) : labels de genres cochés, vide = tout
   const [genreFilter, setGenreFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -140,6 +143,13 @@ export default function DiscoverScreen() {
     }
   }, [hydrated, state.onboarded, loadFeed]);
 
+  // Boost éditorial partagé : on lit la liste Supabase une fois, à l'ouverture
+  useEffect(() => {
+    if (hydrated && state.onboarded) {
+      fetchBoostedArtists().then(setBoosts).catch(() => {});
+    }
+  }, [hydrated, state.onboarded]);
+
   // L'algo v1 : tri par affinité de genres + un peu de hasard stable
   const deck = useMemo(() => {
     return [...feed]
@@ -152,12 +162,13 @@ export default function DiscoverScreen() {
         s:
           (t.featured ? 2.5 : 0) + // artistes maison mis en avant
           affinity(t) +
-          fairnessBonus(t.popularity) + // nivelage : coup de pouce aux petits artistes
+          fairnessBonus(t.popularity) + // nivelage auto : coup de pouce aux petits artistes
+          curatedBoost(t.artistId, boosts) + // boost éditorial partagé (Supabase)
           ((hashCode(t.id + sessionSeed) % 100) / 100) * 1.5,
       }))
       .sort((a, b) => b.s - a.s)
       .map(x => x.t);
-  }, [feed, bucketOf, affinity, genreFilter]);
+  }, [feed, bucketOf, affinity, genreFilter, boosts]);
 
   const top: Track | undefined = deck[0];
   const under: Track | undefined = deck[1];
