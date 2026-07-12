@@ -12,9 +12,11 @@
    le rank Deezer pousse les petits artistes tout seul ; cette liste-ci te laisse
    pousser À LA MAIN un artiste précis en qui tu crois. */
 
-// ─── À REMPLIR avec TON projet Supabase (Dashboard → Project Settings → API) ───
-const SUPABASE_URL = ""; // ex. "https://abcd1234.supabase.co"
-const SUPABASE_ANON_KEY = ""; // la clé « anon public » (faite pour être embarquée, protégée par RLS)
+// ─── Ton projet Supabase (repris de l'ancien client V2 ; clé « anon public »,
+//     faite pour être embarquée, protégée par RLS — Dashboard → Settings → API) ───
+const SUPABASE_URL = "https://ivswzeggkrrifdkxlvid.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2c3d6ZWdna3JyaWZka3hsdmlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3NzY3ODAsImV4cCI6MjA5OTM1Mjc4MH0.I_xvtKpuoujQs_gB-goXOIECY7u7Dey0WvMcCSlrfzg";
 // ──────────────────────────────────────────────────────────────────────────────
 
 export const boostReady =
