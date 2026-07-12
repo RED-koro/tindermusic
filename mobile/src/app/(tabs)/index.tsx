@@ -42,6 +42,7 @@ import {
   fetchFeaturedTracks,
 } from "../../lib/deezer";
 import { FEATURED_LABEL } from "../../lib/featured";
+import { fairnessBonus } from "../../lib/fairness";
 import { listenLinks } from "../../lib/listen";
 import { shareTrack } from "../../lib/share";
 import { addLikedToSpotify } from "../../lib/spotify";
@@ -151,6 +152,7 @@ export default function DiscoverScreen() {
         s:
           (t.featured ? 2.5 : 0) + // artistes maison mis en avant
           affinity(t) +
+          fairnessBonus(t.popularity) + // nivelage : coup de pouce aux petits artistes
           ((hashCode(t.id + sessionSeed) % 100) / 100) * 1.5,
       }))
       .sort((a, b) => b.s - a.s)

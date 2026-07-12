@@ -43,6 +43,9 @@ export interface Track {
   /** Titre venant du catalogue Deezer (extraits officiels 30 s) */
   deezer?: boolean;
   artistId?: number;
+  /** Popularité du titre (champ `rank` Deezer, ~0 à 1 000 000) — sert au
+      nivelage de visibilité dans le deck (voir src/lib/fairness.ts) */
+  popularity?: number;
   /** Titre d'un artiste maison de Tune (mis en avant dans le deck) */
   featured?: boolean;
   album?: string;

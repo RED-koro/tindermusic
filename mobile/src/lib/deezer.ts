@@ -70,6 +70,8 @@ interface DeezerTrack {
   id: number;
   title: string;
   preview: string;
+  /** Popularité du titre (0 à ~1 000 000) — utilisée pour le nivelage de visibilité */
+  rank?: number;
   artist: { id?: number; name: string };
   album: { title: string; cover_big?: string; cover_medium?: string };
 }
@@ -97,6 +99,7 @@ function toTrack(
     hue2: 0,
     deezer: true,
     featured: featured || undefined,
+    popularity: t.rank,
     album: t.album?.title,
     previewUrl: t.preview,
     coverUri: t.album?.cover_big || t.album?.cover_medium || null,
