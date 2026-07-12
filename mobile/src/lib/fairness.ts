@@ -15,7 +15,7 @@
 const FLOOR = 2.5; // plancher de visibilité (rank ≈ 300) : en dessous = « aucune visibilité »
 const CEIL = 6; // plafond superstar (rank ≈ 1 000 000) : au-dessus, plus besoin d'aide
 const SOFT = 0.5; // douceur du seuil (petit = transition douce, grand = brutal)
-const AMP = 3; // amplitude max du bonus (à l'échelle du +2.5 maison, sans écraser les goûts)
+const AMP = 4.5; // amplitude max du bonus (à l'échelle du +2.5 maison, sans écraser les goûts)
 // ─────────────────────────────────────────────────────────────────────────
 
 const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
