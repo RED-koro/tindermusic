@@ -30,3 +30,18 @@ export function fairnessBonus(popularity?: number): number {
   const underdog = clamp01((CEIL - p) / (CEIL - FLOOR)); // moins connu = plus de pouce
   return AMP * gate * underdog;
 }
+
+/** Variété : jamais deux cartes du même artiste d'affilée. Le tri par score
+    a tendance à empiler les titres d'un artiste boosté ou adoré — on entrelace
+    en respectant l'ordre au maximum (le n°1 reste n°1). */
+export function spreadArtists<T extends { artist: string }>(sorted: T[]): T[] {
+  const out: T[] = [];
+  const rest = [...sorted];
+  while (rest.length) {
+    const prev = out[out.length - 1];
+    let i = prev ? rest.findIndex(t => t.artist !== prev.artist) : 0;
+    if (i === -1) i = 0; // il ne reste que cet artiste : on empile, tant pis
+    out.push(rest.splice(i, 1)[0]);
+  }
+  return out;
+}

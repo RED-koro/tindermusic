@@ -88,6 +88,21 @@ const fr = {
     fans: "fans",
     albums: "albums",
   },
+  legal: {
+    title: "À propos & légal",
+    aboutTitle: "Tune",
+    aboutBody:
+      "Tune est une application gratuite de découverte musicale : swipe des extraits de 30 secondes, aime ce qui te plaît, et l'algorithme apprend tes goûts. Application sans but commercial.",
+    musicTitle: "Musique — attribution Deezer",
+    musicBody:
+      "Les extraits musicaux (30 secondes), pochettes d'albums, noms d'artistes et classements sont fournis par l'API publique de Deezer. Tune n'héberge aucun enregistrement du commerce et ne permet ni téléchargement ni écoute intégrale : pour écouter un titre en entier, tu choisis ta plateforme (Spotify, Apple Music, YouTube, Deezer…) directement depuis la fiche du morceau.",
+    privacyTitle: "Confidentialité",
+    privacyBody:
+      "• Tune ne collecte aucune donnée personnelle : pas de compte, pas de tracker, pas de publicité.\n• Tes goûts (swipes, scores de genres et d'artistes) et ta bibliothèque sont stockés uniquement sur ton appareil.\n• Les recherches et le chargement des extraits interrogent l'API Deezer ; ces requêtes sont soumises à la politique de confidentialité de Deezer.\n• Si tu connectes Spotify, l'autorisation reste entre ton appareil et Spotify : Tune ne voit jamais ton mot de passe.\n• Tu peux tout effacer à tout moment : Profil → « Réinitialiser mes données », ou en désinstallant l'application.",
+    contactTitle: "Contact",
+    contactBody: "Une question, un signalement, une réclamation de droits ?",
+    footer: "Tune v1.0.0 — fait avec ❤ en France",
+  },
 };
 
 const en: typeof fr = {
@@ -172,6 +187,21 @@ const en: typeof fr = {
     noPreview: "No preview available.",
     fans: "fans",
     albums: "albums",
+  },
+  legal: {
+    title: "About & legal",
+    aboutTitle: "Tune",
+    aboutBody:
+      "Tune is a free music discovery app: swipe through 30-second previews, like what moves you, and the algorithm learns your taste. Non-commercial application.",
+    musicTitle: "Music — Deezer attribution",
+    musicBody:
+      "The 30-second music previews, album covers, artist names and charts are provided by Deezer's public API. Tune does not host any commercial recording and allows neither downloads nor full playback: to hear a full track, you pick your platform (Spotify, Apple Music, YouTube, Deezer…) right from the track's card.",
+    privacyTitle: "Privacy",
+    privacyBody:
+      "• Tune collects no personal data: no account, no tracker, no ads.\n• Your taste (swipes, genre and artist scores) and your library are stored on your device only.\n• Searches and preview loading query the Deezer API; those requests fall under Deezer's privacy policy.\n• If you connect Spotify, the authorization happens between your device and Spotify: Tune never sees your password.\n• You can erase everything at any time: Profile → \"Reset my data\", or by uninstalling the app.",
+    contactTitle: "Contact",
+    contactBody: "A question, a report, a rights claim?",
+    footer: "Tune v1.0.0 — made with ❤ in France",
   },
 };
 

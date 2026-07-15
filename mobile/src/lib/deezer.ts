@@ -123,10 +123,11 @@ function dedupe(lists: Track[][]): Track[] {
 export async function fetchChart(
   genreId: number,
   label: string,
-  limit = 20
+  limit = 20,
+  index = 0
 ): Promise<Track[]> {
   const d = await request<{ data?: DeezerTrack[] }>(
-    `/chart/${genreId}/tracks?limit=${limit}`
+    `/chart/${genreId}/tracks?limit=${limit}&index=${index}`
   );
   return (d.data ?? []).map(t => toTrack(t, label)).filter((t): t is Track => !!t);
 }
@@ -205,11 +206,14 @@ export interface ArtistSeed {
 
 /** Construit le flux Découvrir (algo v2) :
     artistes maison + tendances + charts des genres préférés + recommandations
-    « parce que tu as aimé cet artiste » (top de l'artiste + artistes similaires). */
+    « parce que tu as aimé cet artiste » (top de l'artiste + artistes similaires).
+    `chartIndex` avance dans les charts (pagination) : les recharges suivantes
+    ramènent la suite du classement au lieu des mêmes titres. */
 export async function fetchDiscoveryFeed(
   genreScores: Record<string, number>,
   seeds: ArtistSeed[] = [],
-  perChart = 20
+  perChart = 20,
+  chartIndex = 0
 ): Promise<Track[]> {
   const ranked = [...DEEZER_GENRES].sort(
     (a, b) => (genreScores[b.label] || 0) - (genreScores[a.label] || 0)
@@ -224,7 +228,7 @@ export async function fetchDiscoveryFeed(
   ].filter((g, i, arr) => arr.findIndex(x => x.id === g.id) === i);
 
   const chartJobs = picks.map(p =>
-    fetchChart(p.id, p.label, perChart).catch(() => [])
+    fetchChart(p.id, p.label, perChart, chartIndex).catch(() => [])
   );
 
   // « parce que tu as aimé X » : top de l'artiste + tops de 2 artistes similaires

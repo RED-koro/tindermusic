@@ -43,7 +43,7 @@ import {
 } from "../../lib/deezer";
 import { curatedBoost, fetchBoostedArtists } from "../../lib/boost";
 import { FEATURED_LABEL } from "../../lib/featured";
-import { fairnessBonus } from "../../lib/fairness";
+import { fairnessBonus, spreadArtists } from "../../lib/fairness";
 import { listenLinks } from "../../lib/listen";
 import { shareTrack } from "../../lib/share";
 import { addLikedToSpotify } from "../../lib/spotify";
@@ -95,9 +95,13 @@ export default function DiscoverScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const feedRequested = useRef(false);
+  // deck infini : page courante des charts + compteur d'échecs consécutifs
+  // (2 recharges sans rien de neuf = les charts sont épuisés, on arrête)
+  const feedPage = useRef(0);
+  const feedExhausted = useRef(0);
 
   const loadFeed = useCallback(
-    async (perChart = 20) => {
+    async (perChart = 20, silent = false) => {
       setLoadingFeed(true);
       try {
         const s = stateRef.current;
@@ -110,9 +114,13 @@ export default function DiscoverScreen() {
           .slice(0, 2)
           .map(t => ({ artistId: t.artistId as number, genres: t.genres }));
 
+        const chartIndex = feedPage.current * perChart;
         const [featured, discovery] = await Promise.all([
-          fetchFeaturedTracks().catch(() => [] as Track[]),
-          fetchDiscoveryFeed(s.genreScores, seeds, perChart).catch(
+          // les artistes maison ne sont chargés qu'une fois (pas de pagination)
+          feedPage.current === 0
+            ? fetchFeaturedTracks().catch(() => [] as Track[])
+            : Promise.resolve([] as Track[]),
+          fetchDiscoveryFeed(s.genreScores, seeds, perChart, chartIndex).catch(
             () => [] as Track[]
           ),
         ]);
@@ -121,13 +129,18 @@ export default function DiscoverScreen() {
           registerTracks(tracks);
           setFeed(prev => {
             const seen = new Set(prev.map(t => t.id));
-            return [...prev, ...tracks.filter(t => !seen.has(t.id))];
+            const fresh = tracks.filter(t => !seen.has(t.id));
+            feedExhausted.current = fresh.length ? 0 : feedExhausted.current + 1;
+            return fresh.length ? [...prev, ...fresh] : prev;
           });
+          feedPage.current += 1;
         } else {
-          toast(S.discover.offline);
+          feedExhausted.current += 1;
+          if (!silent) toast(S.discover.offline);
         }
       } catch {
-        toast(S.discover.offline);
+        feedExhausted.current += 1;
+        if (!silent) toast(S.discover.offline);
       } finally {
         setLoadingFeed(false);
       }
@@ -150,9 +163,12 @@ export default function DiscoverScreen() {
     }
   }, [hydrated, state.onboarded]);
 
-  // L'algo v1 : tri par affinité de genres + un peu de hasard stable
+  // carte tout juste « dé-swipée » (annuler) : elle doit revenir en tête
+  const [undoneId, setUndoneId] = useState<string | null>(null);
+
+  // Le classement du deck : affinité + mises en avant + un peu de hasard stable
   const deck = useMemo(() => {
-    return [...feed]
+    const ordered = [...feed]
       .filter(t => !bucketOf(t.id))
       .filter(
         t => genreFilter.length === 0 || t.genres.some(g => genreFilter.includes(g))
@@ -160,18 +176,31 @@ export default function DiscoverScreen() {
       .map(t => ({
         t,
         s:
-          (t.featured ? 2.5 : 0) + // artistes maison mis en avant
+          // artistes maison : +2.5 seulement s'ils ne sont pas déjà dans la
+          // liste éditoriale Supabase (sinon les bonus s'empilent en double)
+          (t.featured && !(t.artistId != null && boosts.has(t.artistId)) ? 2.5 : 0) +
           affinity(t) +
           fairnessBonus(t.popularity) + // nivelage auto : coup de pouce aux petits artistes
           curatedBoost(t.artistId, boosts) + // boost éditorial partagé (Supabase)
+          (t.id === undoneId ? 100 : 0) + // « annuler » : la carte revient en tête
           ((hashCode(t.id + sessionSeed) % 100) / 100) * 1.5,
       }))
       .sort((a, b) => b.s - a.s)
       .map(x => x.t);
-  }, [feed, bucketOf, affinity, genreFilter, boosts]);
+    // variété : jamais deux cartes du même artiste d'affilée
+    return spreadArtists(ordered);
+  }, [feed, bucketOf, affinity, genreFilter, boosts, undoneId]);
 
   const top: Track | undefined = deck[0];
   const under: Track | undefined = deck[1];
+
+  // Deck infini : quand il reste peu de cartes, on recharge en coulisse
+  // (la suite des charts Deezer), sans que l'utilisateur ne voie rien.
+  useEffect(() => {
+    if (!feedRequested.current || loadingFeed) return;
+    if (feedExhausted.current >= 2) return; // plus rien de neuf chez Deezer
+    if (deck.length < 6) loadFeed(20, true);
+  }, [deck.length, loadingFeed, loadFeed]);
 
   const [showInfo, setShowInfo] = useState(false);
   const deciding = useRef(false);
@@ -220,6 +249,7 @@ export default function DiscoverScreen() {
         stopPlayback();
         if (getAutoplay()) pendingPlay.current = true;
         decide(track, bucket, listened);
+        setUndoneId(prev => (prev === track.id ? null : prev));
         // si Spotify est connecté, le coup de cœur file dans sa playlist
         if (bucket === "liked") addLikedToSpotify(track);
         if (bucket === "liked") toast(likeToast(track.title));
@@ -338,6 +368,7 @@ export default function DiscoverScreen() {
             testID="btn-undo"
             hitSlop={8}
             onPress={() => {
+              if (state.lastDecision) setUndoneId(state.lastDecision.id);
               undoLastDecision();
               toast(undoToast());
             }}
@@ -361,7 +392,13 @@ export default function DiscoverScreen() {
           <View style={styles.empty}>
             <Text style={{ fontSize: 44 }}>💿</Text>
             <Text style={styles.emptyText}>{emptyLine}</Text>
-            <Pressable style={styles.restartBtn} onPress={() => loadFeed(40)}>
+            <Pressable
+              style={styles.restartBtn}
+              onPress={() => {
+                feedExhausted.current = 0; // relance manuelle : on retente
+                loadFeed(40);
+              }}
+            >
               <Text style={styles.restartText}>{S.discover.reloadFeed}</Text>
             </Pressable>
             <Pressable style={styles.restartAlt} onPress={resetBuckets}>

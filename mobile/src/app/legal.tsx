@@ -7,6 +7,7 @@ import { useRouter } from "expo-router";
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { S } from "../lib/strings";
 import { C } from "../lib/theme";
 
 const CONTACT_EMAIL = "andytaiebchaumont2@gmail.com";
@@ -20,28 +21,17 @@ export default function LegalScreen() {
         <Pressable onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="chevron-back" size={26} color={C.text} />
         </Pressable>
-        <Text style={styles.h1}>À propos & légal</Text>
+        <Text style={styles.h1}>{S.legal.title}</Text>
         <View style={{ width: 26 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Section title="Tune">
-          <Text style={styles.p}>
-            Tune est une application gratuite de découverte musicale : swipe des
-            extraits de 30 secondes, aime ce qui te plaît, et l'algorithme
-            apprend tes goûts. Application sans but commercial.
-          </Text>
+        <Section title={S.legal.aboutTitle}>
+          <Text style={styles.p}>{S.legal.aboutBody}</Text>
         </Section>
 
-        <Section title="Musique — attribution Deezer">
-          <Text style={styles.p}>
-            Les extraits musicaux (30 secondes), pochettes d'albums, noms
-            d'artistes et classements sont fournis par l'API publique de
-            Deezer. Tune n'héberge aucun enregistrement du commerce et ne
-            permet ni téléchargement ni écoute intégrale : pour écouter un
-            titre en entier, tu choisis ta plateforme (Spotify, Apple Music,
-            YouTube, Deezer…) directement depuis la fiche du morceau.
-          </Text>
+        <Section title={S.legal.musicTitle}>
+          <Text style={styles.p}>{S.legal.musicBody}</Text>
           <Pressable
             style={styles.linkBtn}
             onPress={() => Linking.openURL("https://www.deezer.com")}
@@ -51,25 +41,12 @@ export default function LegalScreen() {
           </Pressable>
         </Section>
 
-        <Section title="Confidentialité">
-          <Text style={styles.p}>
-            • Tune ne collecte aucune donnée personnelle : pas de compte, pas
-            de tracker, pas de publicité.{"\n"}
-            • Tes goûts (swipes, scores de genres et d'artistes) et ta
-            bibliothèque sont stockés uniquement sur ton appareil.{"\n"}
-            • Les recherches et le chargement des extraits interrogent l'API
-            Deezer ; ces requêtes sont soumises à la politique de
-            confidentialité de Deezer.{"\n"}
-            • Tu peux tout effacer à tout moment : Profil → « Réinitialiser mes
-            données », ou en désinstallant l'application.
-          </Text>
+        <Section title={S.legal.privacyTitle}>
+          <Text style={styles.p}>{S.legal.privacyBody}</Text>
         </Section>
 
-
-        <Section title="Contact">
-          <Text style={styles.p}>
-            Une question, un signalement, une réclamation de droits ?
-          </Text>
+        <Section title={S.legal.contactTitle}>
+          <Text style={styles.p}>{S.legal.contactBody}</Text>
           <Pressable
             style={styles.linkBtn}
             onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)}
@@ -79,7 +56,7 @@ export default function LegalScreen() {
           </Pressable>
         </Section>
 
-        <Text style={styles.footer}>Tune v1.0.0 — fait avec ❤ en France</Text>
+        <Text style={styles.footer}>{S.legal.footer}</Text>
       </ScrollView>
     </SafeAreaView>
   );
