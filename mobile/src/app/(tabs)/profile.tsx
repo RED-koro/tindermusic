@@ -17,6 +17,7 @@ import { MiniPlayer } from "../../components/MiniPlayer";
 import {
   connectSpotify,
   disconnectSpotify,
+  spotifyNeedsBuild,
   spotifyReady,
   useSpotifyConnected,
 } from "../../lib/spotify";
@@ -32,6 +33,12 @@ export default function ProfileScreen() {
   const spotifyConnected = useSpotifyConnected();
 
   const onSpotify = async () => {
+    // Expo Go / web : la redirection OAuth ne peut pas revenir vers l'app —
+    // on le dit franchement plutôt que de laisser un bouton qui semble cassé
+    if (spotifyNeedsBuild) {
+      toast(S.profile.spotifySoon);
+      return;
+    }
     if (spotifyConnected) {
       await disconnectSpotify();
       return;

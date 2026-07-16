@@ -189,11 +189,12 @@ export async function fetchRelatedArtists(
   return (d.data ?? []).slice(0, limit);
 }
 
-/** Les artistes maison de Tune : leurs titres arrivent en priorité dans le deck. */
+/** Les artistes maison de Tune : leurs titres arrivent en priorité dans le
+    deck — 4 titres chacun, pas plus : mis en avant ne veut pas dire imposé. */
 export async function fetchFeaturedTracks(): Promise<Track[]> {
   const lists = await Promise.all(
     FEATURED_ARTISTS.map(a =>
-      fetchArtistTop(a.id, FEATURED_LABEL, 7, true).catch(() => [])
+      fetchArtistTop(a.id, FEATURED_LABEL, 4, true).catch(() => [])
     )
   );
   return dedupe(lists);

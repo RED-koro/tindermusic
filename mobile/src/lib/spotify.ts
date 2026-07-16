@@ -8,7 +8,9 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as AuthSession from "expo-auth-session";
+import Constants from "expo-constants";
 import { useSyncExternalStore } from "react";
+import { Platform } from "react-native";
 import { Track } from "./catalog";
 
 // Client ID public de l'app Spotify (safe à embarquer — le flux PKCE n'utilise
@@ -16,6 +18,12 @@ import { Track } from "./catalog";
 const SPOTIFY_CLIENT_ID = "3a38f3ac3e0c41e896f2a0c230b3aa46";
 
 export const spotifyReady = SPOTIFY_CLIENT_ID.length > 0;
+
+/** La connexion OAuth exige que Spotify redirige vers `tune://…` : impossible
+    dans Expo Go (qui vit sur son propre scheme exp://) et non enregistré sur
+    le web. Elle ne marche que dans une vraie app installée (build EAS). */
+export const spotifyNeedsBuild =
+  Platform.OS === "web" || Constants.executionEnvironment === "storeClient";
 
 const SCOPES = ["playlist-modify-private", "playlist-modify-public"];
 const PLAYLIST_NAME = "Tune — Mes découvertes";

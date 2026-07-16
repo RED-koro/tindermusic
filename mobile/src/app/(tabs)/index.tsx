@@ -166,10 +166,16 @@ export default function DiscoverScreen() {
   // carte tout juste « dé-swipée » (annuler) : elle doit revenir en tête
   const [undoneId, setUndoneId] = useState<string | null>(null);
 
-  // Le classement du deck : affinité + mises en avant + un peu de hasard stable
-  const deck = useMemo(() => {
-    const ordered = [...feed]
-      .filter(t => !bucketOf(t.id))
+  // ⚠️ Stabilité du deck : l'ordre est FIGÉ pendant que l'utilisateur swipe.
+  // Si on re-triait à chaque swipe (l'affinité bouge à chaque décision), la
+  // carte visible dessous ne serait pas la vraie suivante (pochette qui
+  // « saute ») et l'artiste le mieux noté enchaînerait toutes ses cartes.
+  // On ne re-trie que quand le flux grandit, ou filtres/boosts/annuler.
+  const affinityRef = useRef(affinity);
+  affinityRef.current = affinity;
+
+  const ordered = useMemo(() => {
+    const scored = [...feed]
       .filter(
         t => genreFilter.length === 0 || t.genres.some(g => genreFilter.includes(g))
       )
@@ -179,7 +185,7 @@ export default function DiscoverScreen() {
           // artistes maison : +2.5 seulement s'ils ne sont pas déjà dans la
           // liste éditoriale Supabase (sinon les bonus s'empilent en double)
           (t.featured && !(t.artistId != null && boosts.has(t.artistId)) ? 2.5 : 0) +
-          affinity(t) +
+          affinityRef.current(t) +
           fairnessBonus(t.popularity) + // nivelage auto : coup de pouce aux petits artistes
           curatedBoost(t.artistId, boosts) + // boost éditorial partagé (Supabase)
           (t.id === undoneId ? 100 : 0) + // « annuler » : la carte revient en tête
@@ -187,9 +193,17 @@ export default function DiscoverScreen() {
       }))
       .sort((a, b) => b.s - a.s)
       .map(x => x.t);
-    // variété : jamais deux cartes du même artiste d'affilée
-    return spreadArtists(ordered);
-  }, [feed, bucketOf, affinity, genreFilter, boosts, undoneId]);
+    // variété : le même artiste ne revient pas avant 4 cartes
+    return spreadArtists(scored, 4);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feed, genreFilter, boosts, undoneId]);
+
+  // Les cartes déjà classées disparaissent, sans jamais re-mélanger l'ordre :
+  // la carte aperçue dessous est GARANTIE d'être la prochaine.
+  const deck = useMemo(
+    () => ordered.filter(t => !bucketOf(t.id)),
+    [ordered, bucketOf]
+  );
 
   const top: Track | undefined = deck[0];
   const under: Track | undefined = deck[1];
