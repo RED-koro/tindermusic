@@ -249,7 +249,41 @@ export async function fetchDiscoveryFeed(
     }
   });
 
-  const lists = await Promise.all([...seedJobs, ...chartJobs]);
+  // NOUVEAUTÉS (même sans historique) : on part des têtes du genre préféré,
+  // et on remonte leurs artistes SIMILAIRES — souvent plus petits, moins
+  // exposés dans les charts. C'est ça qui fait respirer le deck au-delà des
+  // stars, dès le premier lancement.
+  const noveltyGenre = ranked[0] ?? DEEZER_GENRES[0];
+  const noveltyJob = (async (): Promise<Track[]> => {
+    try {
+      const leaders = await fetchChart(noveltyGenre.id, noveltyGenre.label, 8);
+      const leaderIds = [
+        ...new Set(leaders.map(t => t.artistId).filter((v): v is number => v != null)),
+      ].slice(0, 3);
+      const relatedGroups = await Promise.all(
+        leaderIds.map(id => fetchRelatedArtists(id, 4).catch(() => [] as DeezerArtist[]))
+      );
+      // artistes similaires uniques, hors têtes de charts déjà présentes
+      const seen = new Set(leaderIds);
+      const discover: DeezerArtist[] = [];
+      for (const g of relatedGroups)
+        for (const a of g)
+          if (!seen.has(a.id)) {
+            seen.add(a.id);
+            discover.push(a);
+          }
+      const tops = await Promise.all(
+        discover.slice(0, 6).map(a =>
+          fetchArtistTop(a.id, noveltyGenre.label, 3).catch(() => [] as Track[])
+        )
+      );
+      return dedupe(tops);
+    } catch {
+      return [] as Track[];
+    }
+  })();
+
+  const lists = await Promise.all([...seedJobs, noveltyJob, ...chartJobs]);
   return dedupe(lists);
 }
 

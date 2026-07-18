@@ -182,14 +182,15 @@ export default function DiscoverScreen() {
       .map(t => ({
         t,
         s:
-          // artistes maison : +2.5 seulement s'ils ne sont pas déjà dans la
-          // liste éditoriale Supabase (sinon les bonus s'empilent en double)
-          (t.featured && !(t.artistId != null && boosts.has(t.artistId)) ? 2.5 : 0) +
-          affinityRef.current(t) +
-          fairnessBonus(t.popularity) + // nivelage auto : coup de pouce aux petits artistes
-          curatedBoost(t.artistId, boosts) + // boost éditorial partagé (Supabase)
+          // ⚖️ ÉQUITÉ : les artistes maison n'ont AUCUN privilège de classement.
+          // Ils sont présents (garantis dans le flux) et profitent, comme tout
+          // petit artiste, du seul coup de pouce « découverte » (fairnessBonus).
+          // Le hasard (fort) domine → chaque artiste a la même chance de sortir.
+          affinityRef.current(t) + // ce que TU as appris à aimer
+          fairnessBonus(t.popularity) + // découverte : coup de pouce aux moins connus
+          curatedBoost(t.artistId, boosts) + // présence éditoriale douce (Supabase)
           (t.id === undoneId ? 100 : 0) + // « annuler » : la carte revient en tête
-          ((hashCode(t.id + sessionSeed) % 100) / 100) * 1.5,
+          ((hashCode(t.id + sessionSeed) % 100) / 100) * 3.5, // hasard = équité
       }))
       .sort((a, b) => b.s - a.s)
       .map(x => x.t);

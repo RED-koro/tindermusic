@@ -22,11 +22,19 @@ const SUPABASE_ANON_KEY =
 export const boostReady =
   SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY.length > 0;
 
+// Cache mémoire : la liste des boosts change rarement (Andy la modifie à la
+// main). On la garde 10 min pour ne pas retaper Supabase à chaque montée
+// d'écran — indispensable à l'échelle (des milliers d'appareils, mais chacun
+// n'interroge le serveur qu'une fois toutes les 10 min).
+let cache: { at: number; map: Map<number, number> } | null = null;
+const CACHE_MS = 10 * 60 * 1000;
+
 /** Récupère les artistes boostés (actifs) depuis Supabase.
     Renvoie une Map { artistId Deezer → poids }. Toute erreur/réseau coupé
     → Map vide : le boost éditorial ne doit JAMAIS bloquer le deck. */
 export async function fetchBoostedArtists(): Promise<Map<number, number>> {
   if (!boostReady) return new Map();
+  if (cache && Date.now() - cache.at < CACHE_MS) return cache.map;
   try {
     const url = `${SUPABASE_URL}/rest/v1/boosted_artists?select=artist_id,weight&active=eq.true`;
     const controller = new AbortController();
@@ -38,17 +46,21 @@ export async function fetchBoostedArtists(): Promise<Map<number, number>> {
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
     }).finally(() => clearTimeout(deadline));
-    if (!r.ok) return new Map();
+    if (!r.ok) return cache?.map ?? new Map();
     const rows = (await r.json()) as { artist_id: number; weight: number | null }[];
-    return new Map(rows.map(row => [row.artist_id, row.weight ?? 1]));
+    const map = new Map(rows.map(row => [row.artist_id, row.weight ?? 1]));
+    cache = { at: Date.now(), map };
+    return map;
   } catch {
-    return new Map();
+    // hors-ligne : on garde le dernier cache connu plutôt que de tout perdre
+    return cache?.map ?? new Map();
   }
 }
 
-// Force du boost éditorial : un poids de 1 dans Supabase → +3 au score du deck.
-// (Monte le poids par artiste dans Supabase pour pousser plus fort, sans toucher au code.)
-const CURATED_AMP = 3;
+// Force du boost éditorial : un poids de 1 dans Supabase → +1 au score du deck.
+// Dose VOLONTAIREMENT douce : garantir une présence, jamais une domination.
+// (Monte le poids par artiste dans Supabase pour pousser un peu plus, sans code.)
+const CURATED_AMP = 1;
 
 /** Bonus éditorial pour un titre, selon la liste Supabase (poids × amplitude). */
 export function curatedBoost(
