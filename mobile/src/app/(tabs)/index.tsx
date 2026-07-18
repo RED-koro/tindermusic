@@ -77,7 +77,7 @@ function buzz(bucket: Bucket) {
 
 export default function DiscoverScreen() {
   const {
-    state, hydrated, bucketOf, affinity, decide, undoLastDecision,
+    state, hydrated, byId, bucketOf, affinity, decide, undoLastDecision,
     registerTracks, completeOnboarding, resetBuckets,
   } = useStore();
   const playback = usePlayback();
@@ -166,45 +166,67 @@ export default function DiscoverScreen() {
   // carte tout juste « dé-swipée » (annuler) : elle doit revenir en tête
   const [undoneId, setUndoneId] = useState<string | null>(null);
 
-  // ⚠️ Stabilité du deck : l'ordre est FIGÉ pendant que l'utilisateur swipe.
-  // Si on re-triait à chaque swipe (l'affinité bouge à chaque décision), la
-  // carte visible dessous ne serait pas la vraie suivante (pochette qui
-  // « saute ») et l'artiste le mieux noté enchaînerait toutes ses cartes.
-  // On ne re-trie que quand le flux grandit, ou filtres/boosts/annuler.
   const affinityRef = useRef(affinity);
   affinityRef.current = affinity;
 
-  const ordered = useMemo(() => {
-    const scored = [...feed]
-      .filter(
-        t => genreFilter.length === 0 || t.genres.some(g => genreFilter.includes(g))
-      )
-      .map(t => ({
-        t,
-        s:
-          // ⚖️ ÉQUITÉ : les artistes maison n'ont AUCUN privilège de classement.
-          // Ils sont présents (garantis dans le flux) et profitent, comme tout
-          // petit artiste, du seul coup de pouce « découverte » (fairnessBonus).
-          // Le hasard (fort) domine → chaque artiste a la même chance de sortir.
-          affinityRef.current(t) + // ce que TU as appris à aimer
-          fairnessBonus(t.popularity) + // découverte : coup de pouce aux moins connus
-          curatedBoost(t.artistId, boosts) + // présence éditoriale douce (Supabase)
-          (t.id === undoneId ? 100 : 0) + // « annuler » : la carte revient en tête
-          ((hashCode(t.id + sessionSeed) % 100) / 100) * 3.5, // hasard = équité
-      }))
-      .sort((a, b) => b.s - a.s)
-      .map(x => x.t);
-    // variété : le même artiste ne revient pas avant 4 cartes
-    return spreadArtists(scored, 4);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feed, genreFilter, boosts, undoneId]);
-
-  // Les cartes déjà classées disparaissent, sans jamais re-mélanger l'ordre :
-  // la carte aperçue dessous est GARANTIE d'être la prochaine.
-  const deck = useMemo(
-    () => ordered.filter(t => !bucketOf(t.id)),
-    [ordered, bucketOf]
+  // score d'une carte pour le classement (voir commentaires d'équité plus bas)
+  const scoreOf = useCallback(
+    (t: Track) =>
+      // ⚖️ ÉQUITÉ : les artistes maison n'ont AUCUN privilège de classement.
+      // Le hasard (fort) domine → chaque artiste a la même chance de sortir.
+      affinityRef.current(t) + // ce que TU as appris à aimer
+      fairnessBonus(t.popularity) + // découverte : coup de pouce aux moins connus
+      curatedBoost(t.artistId, boosts) + // présence éditoriale douce (Supabase)
+      ((hashCode(t.id + sessionSeed) % 100) / 100) * 3.5, // hasard = équité
+    [boosts]
   );
+  const matchesFilter = useCallback(
+    (t: Track) =>
+      genreFilter.length === 0 || t.genres.some(g => genreFilter.includes(g)),
+    [genreFilter]
+  );
+
+  // ⚠️ ORDRE DÉFINITIF PAR AJOUT. On garde une liste d'ids figée : les
+  // nouveaux titres (deck infini) sont classés entre eux puis AJOUTÉS À LA FIN
+  // — jamais devant une carte déjà en place. Garantie béton : la carte aperçue
+  // dessous est toujours la prochaine, même quand le flux se recharge. On ne
+  // reconstruit tout que si les filtres ou les boosts changent (action voulue).
+  const [orderedIds, setOrderedIds] = useState<string[]>([]);
+  const orderSig = useRef<string | null>(null);
+  useEffect(() => {
+    const sig =
+      genreFilter.join(",") + "|" + [...boosts.keys()].sort().join(",");
+    const build = (list: Track[]) =>
+      spreadArtists(
+        list
+          .map(t => ({ t, s: scoreOf(t) }))
+          .sort((a, b) => b.s - a.s)
+          .map(x => x.t),
+        4
+      ).map(t => t.id);
+
+    setOrderedIds(prev => {
+      if (orderSig.current !== sig) {
+        orderSig.current = sig;
+        return build(feed.filter(matchesFilter));
+      }
+      const known = new Set(prev);
+      const additions = feed.filter(t => !known.has(t.id) && matchesFilter(t));
+      return additions.length ? [...prev, ...build(additions)] : prev;
+    });
+  }, [feed, boosts, genreFilter, scoreOf, matchesFilter]);
+
+  // Les cartes déjà classées disparaissent, sans jamais re-mélanger l'ordre.
+  // « Annuler » ramène juste la carte visée en tête, sans toucher au reste.
+  const deck = useMemo(() => {
+    const ids = undoneId
+      ? [undoneId, ...orderedIds.filter(id => id !== undoneId)]
+      : orderedIds;
+    return ids
+      .map(id => byId[id])
+      .filter((t): t is Track => !!t && !bucketOf(t.id) && matchesFilter(t));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderedIds, undoneId, byId, bucketOf, matchesFilter]);
 
   const top: Track | undefined = deck[0];
   const under: Track | undefined = deck[1];

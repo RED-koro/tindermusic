@@ -26,13 +26,18 @@ export const DEEZER_GENRES: { id: number; label: string }[] = [
 
 let jsonpCounter = 0;
 
-function request<T>(path: string): Promise<T> {
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+/** Un seul essai d'appel Deezer (fetch natif avec timeout, JSONP sur web). */
+function requestOnce<T>(path: string): Promise<T> {
   if (Platform.OS !== "web") {
     // timeout dur : un appel qui pend ne doit jamais bloquer l'app
     const controller = new AbortController();
     const deadline = setTimeout(() => controller.abort(), 8000);
     return fetch(`${API}${path}`, { signal: controller.signal })
       .then(r => {
+        // 429 = trop de requêtes : signalé pour être réessayé après pause
+        if (r.status === 429) throw new Error("deezer-429");
         if (!r.ok) throw new Error(`deezer-http-${r.status}`);
         return r.json() as Promise<T>;
       })
@@ -43,7 +48,9 @@ function request<T>(path: string): Promise<T> {
     const sep = path.includes("?") ? "&" : "?";
     const script = document.createElement("script");
     const w = window as unknown as Record<string, unknown>;
+    let timer: ReturnType<typeof setTimeout>;
     const cleanup = () => {
+      clearTimeout(timer);
       delete w[cb];
       script.remove();
     };
@@ -57,7 +64,7 @@ function request<T>(path: string): Promise<T> {
     };
     script.src = `${API}${path}${sep}output=jsonp&callback=${cb}`;
     document.head.appendChild(script);
-    setTimeout(() => {
+    timer = setTimeout(() => {
       if (w[cb]) {
         cleanup();
         reject(new Error("deezer-timeout"));
@@ -65,6 +72,31 @@ function request<T>(path: string): Promise<T> {
     }, 10000);
   });
 }
+
+/** Appel Deezer résilient : jusqu'à 3 tentatives, avec pause croissante
+    (400 ms, puis 1200 ms) + un peu d'aléa pour ne pas synchroniser tous les
+    appareils sur une panne. C'est ce qui fait tenir l'app quand le réseau
+    hoquette ou quand Deezer répond « trop de requêtes » à l'échelle. */
+async function request<T>(path: string, tries = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < tries; attempt++) {
+    try {
+      return await requestOnce<T>(path);
+    } catch (e) {
+      lastErr = e;
+      if (attempt < tries - 1) {
+        const base = 400 * Math.pow(3, attempt); // 400 ms → 1200 ms
+        await sleep(base + Math.random() * 300);
+      }
+    }
+  }
+  throw lastErr;
+}
+
+/** Deezer sert parfois les extraits en http : on force https (sinon le
+    navigateur bloque le « contenu mixte » sur le site web sécurisé). */
+const toHttps = (url?: string | null) =>
+  url ? url.replace(/^http:\/\//i, "https://") : url ?? null;
 
 interface DeezerTrack {
   id: number;
@@ -101,8 +133,8 @@ function toTrack(
     featured: featured || undefined,
     popularity: t.rank,
     album: t.album?.title,
-    previewUrl: t.preview,
-    coverUri: t.album?.cover_big || t.album?.cover_medium || null,
+    previewUrl: toHttps(t.preview) ?? t.preview,
+    coverUri: toHttps(t.album?.cover_big || t.album?.cover_medium || null),
   };
 }
 
@@ -300,7 +332,7 @@ export async function refreshPreviewUrl(trackId: string): Promise<string | null>
   const numericId = trackId.replace(/^dz-/, "");
   try {
     const t = await request<DeezerTrack>(`/track/${numericId}`);
-    return t?.preview || null;
+    return toHttps(t?.preview) || null;
   } catch {
     return null;
   }

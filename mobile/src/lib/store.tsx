@@ -11,6 +11,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { AppState } from "react-native";
 import { setOnListenChunk } from "./audio";
 import { Track } from "./catalog";
 
@@ -157,14 +158,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setHydrated(true));
   }, []);
 
+  // Persistance throttlée : on n'écrit pas le disque à chaque swipe (rafale),
+  // mais au plus toutes les 800 ms. Le dernier état est toujours écrit (trailing).
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingState = useRef<TuneState | null>(null);
   useEffect(() => {
     if (!hydrated) return;
     if (skipPersist.current) {
       skipPersist.current = false;
       return;
     }
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {});
+    pendingState.current = state;
+    if (persistTimer.current) return; // une écriture est déjà programmée
+    persistTimer.current = setTimeout(() => {
+      persistTimer.current = null;
+      const s = pendingState.current;
+      if (s) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(s)).catch(() => {});
+    }, 800);
   }, [state, hydrated]);
+
+  // filet de sécurité : flush l'état si l'app passe en arrière-plan / se ferme
+  useEffect(() => {
+    const flush = () => {
+      const s = pendingState.current;
+      if (s) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(s)).catch(() => {});
+    };
+    const sub = AppState.addEventListener("change", st => {
+      if (st !== "active") flush();
+    });
+    return () => sub.remove();
+  }, []);
 
   // le moteur audio crédite ici le temps d'écoute (stats du profil)
   useEffect(() => {

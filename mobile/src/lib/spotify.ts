@@ -119,9 +119,13 @@ async function api<T>(
   path: string,
   init?: RequestInit
 ): Promise<T | null> {
+  // timeout dur : un appel Spotify ne doit jamais pendre indéfiniment
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), 8000);
   try {
     const r = await fetch(`https://api.spotify.com/v1${path}`, {
       ...init,
+      signal: controller.signal,
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -133,6 +137,8 @@ async function api<T>(
     return (await r.json()) as T;
   } catch {
     return null;
+  } finally {
+    clearTimeout(deadline);
   }
 }
 
