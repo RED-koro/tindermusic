@@ -203,20 +203,16 @@ export async function disconnectSpotify() {
 
 async function ensurePlaylist(token: string): Promise<string | null> {
   if (session?.playlistId) return session.playlistId;
-  const me = await api<{ id: string }>(token, "/me");
-  if (!me?.id) return null;
-  const created = await api<{ id: string }>(
-    token,
-    `/users/${me.id}/playlists`,
-    {
-      method: "POST",
-      body: JSON.stringify({
-        name: PLAYLIST_NAME,
-        public: false,
-        description: "Mes découvertes swipées sur Zicmu 🎧",
-      }),
-    }
-  );
+  // ⚠️ POST /me/playlists obligatoirement : l'ancienne route
+  // /users/{id}/playlists renvoie 403 Forbidden en mode développement.
+  const created = await api<{ id: string }>(token, `/me/playlists`, {
+    method: "POST",
+    body: JSON.stringify({
+      name: PLAYLIST_NAME,
+      public: false,
+      description: "Mes découvertes swipées sur Zicmu 🎧",
+    }),
+  });
   if (!created?.id) return null;
   if (session) {
     session.playlistId = created.id;
@@ -252,7 +248,9 @@ export async function addLikedToSpotify(track: Track): Promise<void> {
   const playlistId = await ensurePlaylist(token);
   if (!playlistId) return;
 
-  await api(token, `/playlists/${playlistId}/tracks`, {
+  // ⚠️ Route /items obligatoirement : Spotify a remplacé /tracks (qui renvoie
+  // désormais 403 Forbidden) par /items en février.
+  await api(token, `/playlists/${playlistId}/items`, {
     method: "POST",
     body: JSON.stringify({ uris: [uri] }),
   });
