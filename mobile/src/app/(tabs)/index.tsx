@@ -41,7 +41,12 @@ import {
   fetchDiscoveryFeed,
   fetchFeaturedTracks,
 } from "../../lib/deezer";
-import { curatedBoost, fetchBoostedArtists } from "../../lib/boost";
+import {
+  BoostMap,
+  curatedBoost,
+  fetchBoostedArtists,
+  isSponsored,
+} from "../../lib/boost";
 import { FEATURED_LABEL } from "../../lib/featured";
 import { fairnessBonus, spreadArtists } from "../../lib/fairness";
 import { listenLinks } from "../../lib/listen";
@@ -89,7 +94,7 @@ export default function DiscoverScreen() {
   // Flux Deezer : vraie musique, chargée selon les genres préférés de l'user
   const [feed, setFeed] = useState<Track[]>([]);
   // Boost éditorial partagé (Supabase) : artistId Deezer → poids. Vide si non configuré/hors-ligne
-  const [boosts, setBoosts] = useState<Map<number, number>>(new Map());
+  const [boosts, setBoosts] = useState<BoostMap>(new Map());
   // Filtres du deck (session) : labels de genres cochés, vide = tout
   const [genreFilter, setGenreFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -446,7 +451,13 @@ export default function DiscoverScreen() {
 
         {under && (
           <Animated.View style={[styles.card, { pointerEvents: "none" }, underStyle]}>
-            <CardFace track={under} playing={false} ratio={0} elapsed={0} />
+            <CardFace
+              track={under}
+              playing={false}
+              ratio={0}
+              elapsed={0}
+              sponsored={isSponsored(under.artistId, boosts)}
+            />
           </Animated.View>
         )}
 
@@ -458,6 +469,7 @@ export default function DiscoverScreen() {
                 playing={isTopPlaying}
                 ratio={isTopPlaying ? playback.ratio : 0}
                 elapsed={isTopPlaying ? playback.elapsed : 0}
+                sponsored={isSponsored(top.artistId, boosts)}
                 onTogglePlay={() => {
                   setAutoplay(true);
                   togglePlayback(top);
@@ -465,7 +477,11 @@ export default function DiscoverScreen() {
                 onToggleInfo={() => setShowInfo(v => !v)}
               />
               {showInfo && (
-                <InfoBack track={top} onClose={() => setShowInfo(false)} />
+                <InfoBack
+                  track={top}
+                  sponsored={isSponsored(top.artistId, boosts)}
+                  onClose={() => setShowInfo(false)}
+                />
               )}
               <Animated.View style={[styles.badge, styles.badgeLike, likeStyle]}>
                 <Text style={[styles.badgeText, { color: "#5bffa0" }]}>{S.discover.like}</Text>
@@ -620,6 +636,7 @@ function CardFace({
   playing,
   ratio,
   elapsed,
+  sponsored,
   onTogglePlay,
   onToggleInfo,
 }: {
@@ -627,6 +644,8 @@ function CardFace({
   playing: boolean;
   ratio: number;
   elapsed: number;
+  /** visibilité payée par l'artiste → badge transparent, toujours affiché */
+  sponsored?: boolean;
   onTogglePlay?: () => void;
   onToggleInfo?: () => void;
 }) {
@@ -658,7 +677,14 @@ function CardFace({
       <View style={styles.meta}>
         <Text style={styles.title}>{track.title}</Text>
         <Text style={styles.artist}>{track.artist.toUpperCase()}</Text>
-        <Text style={styles.tags}>{track.genres.join(" • ")}</Text>
+        <View style={styles.tagsRow}>
+          <Text style={styles.tags}>{track.genres.join(" • ")}</Text>
+          {sponsored && (
+            <View style={styles.sponsoredPill}>
+              <Text style={styles.sponsoredText}>{S.discover.sponsored}</Text>
+            </View>
+          )}
+        </View>
         <Pressable style={styles.moreBtn} onPress={onToggleInfo} hitSlop={6}>
           <Text style={{ color: C.muted, fontSize: 15, letterSpacing: 1 }}>•••</Text>
         </Pressable>
@@ -667,7 +693,15 @@ function CardFace({
   );
 }
 
-function InfoBack({ track, onClose }: { track: Track; onClose: () => void }) {
+function InfoBack({
+  track,
+  sponsored,
+  onClose,
+}: {
+  track: Track;
+  sponsored?: boolean;
+  onClose: () => void;
+}) {
   return (
     <View style={styles.back}>
       <Text style={styles.backTitle}>{track.title}</Text>
@@ -678,6 +712,9 @@ function InfoBack({ track, onClose }: { track: Track; onClose: () => void }) {
         label={S.discover.kvSource}
         value={track.featured ? S.discover.srcFeatured : "Deezer"}
       />
+      {sponsored && (
+        <KV label={S.discover.kvVisibility} value={S.discover.sponsoredLong} />
+      )}
       <KV label={S.discover.kvExcerpt} value={`${PREVIEW_SECONDS} ${S.discover.seconds}`} />
       <Text style={styles.backText}>
         {track.featured
@@ -812,7 +849,23 @@ const styles = StyleSheet.create({
   meta: { paddingHorizontal: 20, paddingVertical: 16 },
   title: { color: C.text, fontSize: 26, fontWeight: "800" },
   artist: { color: C.muted, fontSize: 13, letterSpacing: 3, marginTop: 3 },
-  tags: { color: C.accent, fontSize: 14, marginTop: 5 },
+  tags: { color: C.accent, fontSize: 14 },
+  tagsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 5,
+    flexWrap: "wrap",
+  },
+  sponsoredPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: C.line,
+    backgroundColor: C.card2,
+  },
+  sponsoredText: { color: C.muted, fontSize: 10.5, letterSpacing: 0.5 },
   moreBtn: {
     position: "absolute",
     right: 18,

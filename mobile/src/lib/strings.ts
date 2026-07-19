@@ -28,6 +28,7 @@ const fr = {
     kvAlbum: "Album",
     kvGenres: "Genres",
     kvSource: "Source",
+    kvVisibility: "Visibilité",
     kvExcerpt: "Extrait",
     seconds: "secondes",
     srcFeatured: "Sélection Zicmu ✦",
@@ -44,6 +45,8 @@ const fr = {
     obSkip: "Je préfère me perdre tout seul",
     chartsFallback: "du moment",
     styleFallback: "ce style",
+    sponsored: "Sponsorisé",
+    sponsoredLong: "Mise en avant payée par l'artiste",
   },
   library: {
     title: "Ma bibliothèque",
@@ -130,6 +133,7 @@ const en: typeof fr = {
     kvAlbum: "Album",
     kvGenres: "Genres",
     kvSource: "Source",
+    kvVisibility: "Visibility",
     kvExcerpt: "Preview",
     seconds: "seconds",
     srcFeatured: "Zicmu selection ✦",
@@ -146,6 +150,8 @@ const en: typeof fr = {
     obSkip: "I'd rather get lost on my own",
     chartsFallback: "right now",
     styleFallback: "this style",
+    sponsored: "Sponsored",
+    sponsoredLong: "Visibility paid for by the artist",
   },
   library: {
     title: "My library",

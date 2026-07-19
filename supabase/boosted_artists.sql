@@ -9,6 +9,7 @@ create table if not exists public.boosted_artists (
   artist_id  bigint primary key,             -- id Deezer de l'artiste
   name       text,                            -- pour t'y retrouver dans le tableau
   weight     real    not null default 1,      -- force du boost (1 = normal, 2 = fort)
+  sponsored  boolean not null default false,  -- true = l'artiste a payé (badge affiché)
   active     boolean not null default true,   -- décoche pour retirer sans supprimer
   note       text,                            -- pourquoi tu le pousses (optionnel)
   created_at timestamptz not null default now()
