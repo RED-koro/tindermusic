@@ -5,6 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MiniPlayer } from "../../components/MiniPlayer";
 import { TrackRow } from "../../components/TrackRow";
+import { addLikedToSpotify } from "../../lib/spotify";
 import { Bucket, useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
@@ -78,6 +79,8 @@ export default function LibraryScreen() {
                       color: C.muted,
                       onPress: () => {
                         moveToLiked(item);
+                        // un cœur ajouté = il file aussi dans la playlist Spotify
+                        addLikedToSpotify(item);
                         toast(S.library.movedToLiked(item.title));
                       },
                     },

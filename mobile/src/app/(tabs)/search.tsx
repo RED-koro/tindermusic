@@ -14,6 +14,7 @@ import { MiniPlayer } from "../../components/MiniPlayer";
 import { TrackRow } from "../../components/TrackRow";
 import { Track } from "../../lib/catalog";
 import { searchDeezer } from "../../lib/deezer";
+import { addLikedToSpotify } from "../../lib/spotify";
 import { useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
 import { toast } from "../../lib/toast";
@@ -95,6 +96,8 @@ export default function SearchScreen() {
                     color: liked ? C.accent : C.muted,
                     onPress: () => {
                       toggleLiked(item);
+                      // un cœur ajouté = il file aussi dans la playlist Spotify
+                      if (!liked) addLikedToSpotify(item);
                       toast(
                         liked
                           ? S.library.removed(item.title)
