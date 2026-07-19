@@ -1,5 +1,5 @@
 /* Liens "écouter en entier" — l'utilisateur choisit sa plateforme.
-   Tune ne dépend de Deezer que pour les données (extraits + pochettes) ;
+   Zicmu ne dépend de Deezer que pour les données (extraits + pochettes) ;
    pour le titre complet, on renvoie vers le service que la personne utilise
    déjà. On n'a que l'id Deezer, donc pour les autres plateformes on ouvre
    une recherche "titre + artiste" (fiable et universel). */

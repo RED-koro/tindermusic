@@ -1,4 +1,4 @@
-/* Palette Tune — reprise du prototype web (prototype-web/styles.css) */
+/* Palette Zicmu — reprise du prototype web (prototype-web/styles.css) */
 export const C = {
   bg: "#08080d",
   bg2: "#101018",

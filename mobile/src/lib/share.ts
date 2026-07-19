@@ -11,8 +11,8 @@ export async function shareTrack(track: Track) {
     ? `https://www.deezer.com/track/${track.id.replace(/^dz-/, "")}`
     : null;
   const message = isFr
-    ? `🎧 J'ai découvert « ${track.title} » de ${track.artist} sur Tune !${link ? `\n${link}` : ""}`
-    : `🎧 I discovered "${track.title}" by ${track.artist} on Tune!${link ? `\n${link}` : ""}`;
+    ? `🎧 J'ai découvert « ${track.title} » de ${track.artist} sur Zicmu !${link ? `\n${link}` : ""}`
+    : `🎧 I discovered "${track.title}" by ${track.artist} on Zicmu!${link ? `\n${link}` : ""}`;
 
   if (Platform.OS === "web") {
     const nav = navigator as Navigator & { share?: (d: { text: string }) => Promise<void> };

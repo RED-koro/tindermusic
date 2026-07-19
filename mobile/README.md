@@ -1,4 +1,4 @@
-# Tune (app mobile)
+# Zicmu (app mobile)
 
 App React Native + Expo (SDK 54) — publiable sur iOS et Android.
 
@@ -79,8 +79,8 @@ eas submit --platform android
 ```
 
 Avant la soumission :
-1. Remplacer les icônes (`assets/images/icon.png`, icônes Android) et le splash screen par le branding Tune
-2. Vérifier `bundleIdentifier` / `package` dans `app.json` (`com.andytaieb.tune`)
+1. Remplacer les icônes (`assets/images/icon.png`, icônes Android) et le splash screen par le branding Zicmu
+2. Vérifier `bundleIdentifier` / `package` dans `app.json` (`com.andytaieb.zicmu`)
 3. Préparer captures d'écran + fiche store (App Store Connect / Play Console)
 
 ## Étape suivante (V2)

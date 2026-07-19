@@ -1,4 +1,4 @@
-/* Types des titres de Tune.
+/* Types des titres de Zicmu.
    La musique vient de Deezer (artistes maison de src/lib/featured.ts + charts
    + recommandations) et des artistes qui publient depuis l'app. */
 
@@ -46,7 +46,7 @@ export interface Track {
   /** Popularité du titre (champ `rank` Deezer, ~0 à 1 000 000) — sert au
       nivelage de visibilité dans le deck (voir src/lib/fairness.ts) */
   popularity?: number;
-  /** Titre d'un artiste maison de Tune (mis en avant dans le deck) */
+  /** Titre d'un artiste maison de Zicmu (mis en avant dans le deck) */
   featured?: boolean;
   album?: string;
   previewUrl?: string;

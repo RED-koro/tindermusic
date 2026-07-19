@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Tune",
-    "slug": "tune",
+    "name": "Zicmu",
+    "slug": "zicmu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "tune",
+    "scheme": "zicmu",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#08080d",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.andytaieb.tune"
+      "bundleIdentifier": "com.andytaieb.zicmu"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +19,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "package": "com.andytaieb.tune",
+      "package": "com.andytaieb.zicmu",
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.RECORD_AUDIO",
@@ -52,7 +52,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "6d222a65-58aa-4c5f-963d-4f37abe24c34"
+        "projectId": "8afdc13c-2ad0-4f5e-967b-df05534b78b9"
       }
     },
     "owner": "bmy_koro"

@@ -1,4 +1,4 @@
-# Tune — le Tinder de la musique 🎧
+# Zicmu — le Tinder de la musique 🎧
 
 Swipe des extraits de 30 secondes : à droite pour aimer (le titre rejoint ta
 bibliothèque), à gauche pour passer, vers le haut pour "à revoir". L'algo

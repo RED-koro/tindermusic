@@ -1,4 +1,4 @@
-/* Intégration Deezer — vraie musique dans Tune.
+/* Intégration Deezer — vraie musique dans Zicmu.
    L'API publique Deezer est gratuite et sans clé : extraits officiels de 30 s,
    pochettes d'albums, charts par genre et recherche dans tout le catalogue.
    Sur téléphone : fetch direct. Sur web : l'API n'envoie pas d'en-têtes CORS,
@@ -118,7 +118,7 @@ function toTrack(
   genreLabel?: string,
   featured = false
 ): Track | null {
-  if (!t?.preview) return null; // sans extrait, inutilisable dans Tune
+  if (!t?.preview) return null; // sans extrait, inutilisable dans Zicmu
   return {
     id: `dz-${t.id}`,
     title: t.title,
@@ -221,7 +221,7 @@ export async function fetchRelatedArtists(
   return (d.data ?? []).slice(0, limit);
 }
 
-/** Les artistes maison de Tune : leurs titres arrivent en priorité dans le
+/** Les artistes maison de Zicmu : leurs titres arrivent en priorité dans le
     deck — 4 titres chacun, pas plus : mis en avant ne veut pas dire imposé. */
 export async function fetchFeaturedTracks(): Promise<Track[]> {
   const lists = await Promise.all(

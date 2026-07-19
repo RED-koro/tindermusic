@@ -1,7 +1,7 @@
 /* Connexion Spotify + « ajouter les coups de cœur à une playlist ».
    Tout est côté client (OAuth PKCE, pas de backend, pas de client secret).
    L'utilisateur connecte son Spotify une fois ; ensuite chaque titre aimé
-   est ajouté à sa playlist « Tune — Mes découvertes ».
+   est ajouté à sa playlist « Zicmu — Mes découvertes ».
 
    Robuste : sans Client ID configuré, ou hors-ligne, tout est no-op —
    l'app marche normalement sans la fonctionnalité. */
@@ -14,19 +14,19 @@ import { Platform } from "react-native";
 import { Track } from "./catalog";
 
 // Client ID public de l'app Spotify (safe à embarquer — le flux PKCE n'utilise
-// pas de secret). Dashboard : developer.spotify.com/dashboard → Tune → Settings
+// pas de secret). Dashboard : developer.spotify.com/dashboard → Zicmu → Settings
 const SPOTIFY_CLIENT_ID = "3a38f3ac3e0c41e896f2a0c230b3aa46";
 
 export const spotifyReady = SPOTIFY_CLIENT_ID.length > 0;
 
-/** La connexion OAuth exige que Spotify redirige vers `tune://…` : impossible
+/** La connexion OAuth exige que Spotify redirige vers `zicmu://…` : impossible
     dans Expo Go (qui vit sur son propre scheme exp://) et non enregistré sur
     le web. Elle ne marche que dans une vraie app installée (build EAS). */
 export const spotifyNeedsBuild =
   Platform.OS === "web" || Constants.executionEnvironment === "storeClient";
 
 const SCOPES = ["playlist-modify-private", "playlist-modify-public"];
-const PLAYLIST_NAME = "Tune — Mes découvertes";
+const PLAYLIST_NAME = "Zicmu — Mes découvertes";
 const STORAGE_KEY = "tune-spotify-v1";
 
 const discovery: AuthSession.DiscoveryDocument = {
@@ -35,7 +35,7 @@ const discovery: AuthSession.DiscoveryDocument = {
 };
 
 const redirectUri = AuthSession.makeRedirectUri({
-  scheme: "tune",
+  scheme: "zicmu",
   path: "spotify-callback",
 });
 
@@ -190,7 +190,7 @@ export async function disconnectSpotify() {
   emit();
 }
 
-/* --- ajout d'un titre aimé à la playlist « Tune » --- */
+/* --- ajout d'un titre aimé à la playlist « Zicmu » --- */
 
 async function ensurePlaylist(token: string): Promise<string | null> {
   if (session?.playlistId) return session.playlistId;
@@ -204,7 +204,7 @@ async function ensurePlaylist(token: string): Promise<string | null> {
       body: JSON.stringify({
         name: PLAYLIST_NAME,
         public: false,
-        description: "Mes découvertes swipées sur Tune 🎧",
+        description: "Mes découvertes swipées sur Zicmu 🎧",
       }),
     }
   );

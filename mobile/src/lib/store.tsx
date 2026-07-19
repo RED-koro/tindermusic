@@ -1,4 +1,4 @@
-/* État global de Tune : buckets (aimés / à revoir / pas pour moi), scores de
+/* État global de Zicmu : buckets (aimés / à revoir / pas pour moi), scores de
    genres et d'artistes (l'« algo » v2), bibliothèque. Persisté dans AsyncStorage. */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -26,7 +26,7 @@ interface LastDecision {
   delta?: number;
 }
 
-interface TuneState {
+interface ZicmuState {
   liked: string[];
   later: string[];
   disliked: string[];
@@ -44,7 +44,7 @@ interface TuneState {
   stats: { listenSeconds: number };
 }
 
-const EMPTY: TuneState = {
+const EMPTY: ZicmuState = {
   liked: [],
   later: [],
   disliked: [],
@@ -60,7 +60,7 @@ const EMPTY: TuneState = {
 const STORAGE_KEY = "tune-state-v1";
 
 interface StoreValue {
-  state: TuneState;
+  state: ZicmuState;
   hydrated: boolean;
   byId: Record<string, Track>;
   bucketOf: (id: string) => Bucket | null;
@@ -81,7 +81,7 @@ interface StoreValue {
 
 const StoreContext = createContext<StoreValue | null>(null);
 
-function withoutId(state: TuneState, id: string): TuneState {
+function withoutId(state: ZicmuState, id: string): ZicmuState {
   return {
     ...state,
     liked: state.liked.filter(x => x !== id),
@@ -112,7 +112,7 @@ function decayScores(scores: Record<string, number>): Record<string, number> {
 }
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<TuneState>(EMPTY);
+  const [state, setState] = useState<ZicmuState>(EMPTY);
   const [hydrated, setHydrated] = useState(false);
   const skipPersist = useRef(true);
   // titres Deezer vus pendant la session (flux Découvrir, recherche)
@@ -161,7 +161,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Persistance throttlée : on n'écrit pas le disque à chaque swipe (rafale),
   // mais au plus toutes les 800 ms. Le dernier état est toujours écrit (trailing).
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingState = useRef<TuneState | null>(null);
+  const pendingState = useRef<ZicmuState | null>(null);
   useEffect(() => {
     if (!hydrated) return;
     if (skipPersist.current) {

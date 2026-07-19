@@ -1,4 +1,4 @@
-/* La voix de Tune — chaleureuse, un peu cash, amoureuse de musique.
+/* La voix de Zicmu — chaleureuse, un peu cash, amoureuse de musique.
    Règle d'or : jamais deux fois la même phrase. Un humain, ça varie.
    Bilingue : français si le téléphone est en français, anglais sinon. */
 

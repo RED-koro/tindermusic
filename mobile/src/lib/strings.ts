@@ -30,7 +30,7 @@ const fr = {
     kvSource: "Source",
     kvExcerpt: "Extrait",
     seconds: "secondes",
-    srcFeatured: "Sélection Tune ✦",
+    srcFeatured: "Sélection Zicmu ✦",
     backFeatured: (a: string) => `${a}, c'est la sélection maison. On assume à 100 %.`,
     backDeezer: (g: string) =>
       `Repéré pour toi dans les charts ${g}. T'as 30 secondes pour trancher.`,
@@ -91,18 +91,18 @@ const fr = {
   },
   legal: {
     title: "À propos & légal",
-    aboutTitle: "Tune",
+    aboutTitle: "Zicmu",
     aboutBody:
-      "Tune est une application gratuite de découverte musicale : swipe des extraits de 30 secondes, aime ce qui te plaît, et l'algorithme apprend tes goûts. Application sans but commercial.",
+      "Zicmu est une application gratuite de découverte musicale : swipe des extraits de 30 secondes, aime ce qui te plaît, et l'algorithme apprend tes goûts. Application sans but commercial.",
     musicTitle: "Musique — attribution Deezer",
     musicBody:
-      "Les extraits musicaux (30 secondes), pochettes d'albums, noms d'artistes et classements sont fournis par l'API publique de Deezer. Tune n'héberge aucun enregistrement du commerce et ne permet ni téléchargement ni écoute intégrale : pour écouter un titre en entier, tu choisis ta plateforme (Spotify, Apple Music, YouTube, Deezer…) directement depuis la fiche du morceau.",
+      "Les extraits musicaux (30 secondes), pochettes d'albums, noms d'artistes et classements sont fournis par l'API publique de Deezer. Zicmu n'héberge aucun enregistrement du commerce et ne permet ni téléchargement ni écoute intégrale : pour écouter un titre en entier, tu choisis ta plateforme (Spotify, Apple Music, YouTube, Deezer…) directement depuis la fiche du morceau.",
     privacyTitle: "Confidentialité",
     privacyBody:
-      "• Tune ne collecte aucune donnée personnelle : pas de compte, pas de tracker, pas de publicité.\n• Tes goûts (swipes, scores de genres et d'artistes) et ta bibliothèque sont stockés uniquement sur ton appareil.\n• Les recherches et le chargement des extraits interrogent l'API Deezer ; ces requêtes sont soumises à la politique de confidentialité de Deezer.\n• Si tu connectes Spotify, l'autorisation reste entre ton appareil et Spotify : Tune ne voit jamais ton mot de passe.\n• Tu peux tout effacer à tout moment : Profil → « Réinitialiser mes données », ou en désinstallant l'application.",
+      "• Zicmu ne collecte aucune donnée personnelle : pas de compte, pas de tracker, pas de publicité.\n• Tes goûts (swipes, scores de genres et d'artistes) et ta bibliothèque sont stockés uniquement sur ton appareil.\n• Les recherches et le chargement des extraits interrogent l'API Deezer ; ces requêtes sont soumises à la politique de confidentialité de Deezer.\n• Si tu connectes Spotify, l'autorisation reste entre ton appareil et Spotify : Zicmu ne voit jamais ton mot de passe.\n• Tu peux tout effacer à tout moment : Profil → « Réinitialiser mes données », ou en désinstallant l'application.",
     contactTitle: "Contact",
     contactBody: "Une question, un signalement, une réclamation de droits ?",
-    footer: "Tune v1.0.0 — fait avec ❤ en France",
+    footer: "Zicmu v1.0.0 — fait avec ❤ en France",
   },
 };
 
@@ -131,7 +131,7 @@ const en: typeof fr = {
     kvSource: "Source",
     kvExcerpt: "Preview",
     seconds: "seconds",
-    srcFeatured: "Tune selection ✦",
+    srcFeatured: "Zicmu selection ✦",
     backFeatured: (a: string) => `${a} is part of our house selection. We fully stand by it.`,
     backDeezer: (g: string) =>
       `Spotted for you in the ${g} charts. You've got 30 seconds to decide.`,
@@ -192,18 +192,18 @@ const en: typeof fr = {
   },
   legal: {
     title: "About & legal",
-    aboutTitle: "Tune",
+    aboutTitle: "Zicmu",
     aboutBody:
-      "Tune is a free music discovery app: swipe through 30-second previews, like what moves you, and the algorithm learns your taste. Non-commercial application.",
+      "Zicmu is a free music discovery app: swipe through 30-second previews, like what moves you, and the algorithm learns your taste. Non-commercial application.",
     musicTitle: "Music — Deezer attribution",
     musicBody:
-      "The 30-second music previews, album covers, artist names and charts are provided by Deezer's public API. Tune does not host any commercial recording and allows neither downloads nor full playback: to hear a full track, you pick your platform (Spotify, Apple Music, YouTube, Deezer…) right from the track's card.",
+      "The 30-second music previews, album covers, artist names and charts are provided by Deezer's public API. Zicmu does not host any commercial recording and allows neither downloads nor full playback: to hear a full track, you pick your platform (Spotify, Apple Music, YouTube, Deezer…) right from the track's card.",
     privacyTitle: "Privacy",
     privacyBody:
-      "• Tune collects no personal data: no account, no tracker, no ads.\n• Your taste (swipes, genre and artist scores) and your library are stored on your device only.\n• Searches and preview loading query the Deezer API; those requests fall under Deezer's privacy policy.\n• If you connect Spotify, the authorization happens between your device and Spotify: Tune never sees your password.\n• You can erase everything at any time: Profile → \"Reset my data\", or by uninstalling the app.",
+      "• Zicmu collects no personal data: no account, no tracker, no ads.\n• Your taste (swipes, genre and artist scores) and your library are stored on your device only.\n• Searches and preview loading query the Deezer API; those requests fall under Deezer's privacy policy.\n• If you connect Spotify, the authorization happens between your device and Spotify: Zicmu never sees your password.\n• You can erase everything at any time: Profile → \"Reset my data\", or by uninstalling the app.",
     contactTitle: "Contact",
     contactBody: "A question, a report, a rights claim?",
-    footer: "Tune v1.0.0 — made with ❤ in France",
+    footer: "Zicmu v1.0.0 — made with ❤ in France",
   },
 };
 

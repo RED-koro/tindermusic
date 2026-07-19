@@ -1,4 +1,4 @@
-/* Les artistes maison de Tune — leur vraie musique (via Deezer) alimente
+/* Les artistes maison de Zicmu — leur vraie musique (via Deezer) alimente
    le deck en priorité. IDs résolus depuis l'API Deezer. */
 
 export const FEATURED_ARTISTS: { id: number; name: string }[] = [
@@ -8,4 +8,4 @@ export const FEATURED_ARTISTS: { id: number; name: string }[] = [
   { id: 381242471, name: "Mélanie Noé" },
 ];
 
-export const FEATURED_LABEL = "Sélection Tune";
+export const FEATURED_LABEL = "Sélection Zicmu";

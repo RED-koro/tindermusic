@@ -1,4 +1,4 @@
-/* Découvrir — pile de cartes swipables (le cœur de Tune) */
+/* Découvrir — pile de cartes swipables (le cœur de Zicmu) */
 
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";

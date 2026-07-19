@@ -1,4 +1,4 @@
-# Règles du projet Tune (mobile) — À LIRE AVANT DE CODER
+# Règles du projet Zicmu (mobile) — À LIRE AVANT DE CODER
 
 ## ⚠️ SDK Expo 54 — NE PAS METTRE À JOUR
 
@@ -20,7 +20,7 @@ Docs versionnées : https://docs.expo.dev/versions/v54.0.0/
 
 ## Voix éditoriale — NE PAS ASEPTISER
 
-Tous les textes UI passent par la voix de Tune (`src/lib/voice.ts`) :
+Tous les textes UI passent par la voix de Zicmu (`src/lib/voice.ts`) :
 tutoiement, chaleureux, un peu cash, références culture musique, formulations
 **variées** (jamais deux fois la même phrase — c'est voulu, c'est humain).
 Interdit : les textes génériques type « Ajouté avec succès », « Bienvenue dans
