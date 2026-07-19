@@ -42,4 +42,4 @@ l'application sont stockées localement sur ton appareil (voir la
 
 ## Contact
 
-andytaiebchaumont2@gmail.com
+Une adresse de contact dédiée sera publiée avant la sortie publique de l'application.

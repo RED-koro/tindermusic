@@ -101,7 +101,8 @@ const fr = {
     privacyBody:
       "• Zicmu ne collecte aucune donnée personnelle : pas de compte, pas de tracker, pas de publicité.\n• Tes goûts (swipes, scores de genres et d'artistes) et ta bibliothèque sont stockés uniquement sur ton appareil.\n• Les recherches et le chargement des extraits interrogent l'API Deezer ; ces requêtes sont soumises à la politique de confidentialité de Deezer.\n• Si tu connectes Spotify, l'autorisation reste entre ton appareil et Spotify : Zicmu ne voit jamais ton mot de passe.\n• Tu peux tout effacer à tout moment : Profil → « Réinitialiser mes données », ou en désinstallant l'application.",
     contactTitle: "Contact",
-    contactBody: "Une question, un signalement, une réclamation de droits ?",
+    contactBody:
+      "Une question, un signalement, une réclamation de droits ? Une adresse de contact dédiée sera ajoutée avant la sortie publique de l'application.",
     footer: "Zicmu v1.0.0 — fait avec ❤ en France",
   },
 };
@@ -202,7 +203,8 @@ const en: typeof fr = {
     privacyBody:
       "• Zicmu collects no personal data: no account, no tracker, no ads.\n• Your taste (swipes, genre and artist scores) and your library are stored on your device only.\n• Searches and preview loading query the Deezer API; those requests fall under Deezer's privacy policy.\n• If you connect Spotify, the authorization happens between your device and Spotify: Zicmu never sees your password.\n• You can erase everything at any time: Profile → \"Reset my data\", or by uninstalling the app.",
     contactTitle: "Contact",
-    contactBody: "A question, a report, a rights claim?",
+    contactBody:
+      "A question, a report, a rights claim? A dedicated contact address will be added before the app's public release.",
     footer: "Zicmu v1.0.0 — made with ❤ in France",
   },
 };

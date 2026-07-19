@@ -37,4 +37,4 @@ Tune ne collecte aucune donnée, y compris celle des mineurs.
 
 ## Contact
 
-Pour toute question : andytaiebchaumont2@gmail.com
+Une adresse de contact dédiée sera publiée avant la sortie publique de l'application.

@@ -10,8 +10,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { S } from "../lib/strings";
 import { C } from "../lib/theme";
 
-const CONTACT_EMAIL = "andytaiebchaumont2@gmail.com";
-
 export default function LegalScreen() {
   const router = useRouter();
 
@@ -47,13 +45,6 @@ export default function LegalScreen() {
 
         <Section title={S.legal.contactTitle}>
           <Text style={styles.p}>{S.legal.contactBody}</Text>
-          <Pressable
-            style={styles.linkBtn}
-            onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)}
-          >
-            <Ionicons name="mail-outline" size={16} color={C.accent} />
-            <Text style={styles.linkText}>{CONTACT_EMAIL}</Text>
-          </Pressable>
         </Section>
 
         <Text style={styles.footer}>{S.legal.footer}</Text>
