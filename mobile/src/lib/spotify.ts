@@ -9,9 +9,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as AuthSession from "expo-auth-session";
 import Constants from "expo-constants";
+import * as WebBrowser from "expo-web-browser";
 import { useSyncExternalStore } from "react";
 import { Platform } from "react-native";
 import { Track } from "./catalog";
+
+// Sur web : quand Spotify redirige la fenêtre de connexion vers le site,
+// cet appel referme la fenêtre et transmet le résultat à l'app. No-op ailleurs.
+WebBrowser.maybeCompleteAuthSession();
 
 // Client ID public de l'app Spotify (safe à embarquer — le flux PKCE n'utilise
 // pas de secret). Dashboard : developer.spotify.com/dashboard → Zicmu → Settings
@@ -19,11 +24,12 @@ const SPOTIFY_CLIENT_ID = "3a38f3ac3e0c41e896f2a0c230b3aa46";
 
 export const spotifyReady = SPOTIFY_CLIENT_ID.length > 0;
 
-/** La connexion OAuth exige que Spotify redirige vers `zicmu://…` : impossible
-    dans Expo Go (qui vit sur son propre scheme exp://) et non enregistré sur
-    le web. Elle ne marche que dans une vraie app installée (build EAS). */
+/** Où la connexion Spotify est-elle possible ?
+    - Site web (zicmu.expo.app) : OUI — redirection https enregistrée au dashboard.
+    - Vraie app installée (build EAS) : OUI — via zicmu://spotify-callback.
+    - Expo Go : NON (vit sur son propre scheme exp://, Spotify ne peut pas y revenir). */
 export const spotifyNeedsBuild =
-  Platform.OS === "web" || Constants.executionEnvironment === "storeClient";
+  Platform.OS !== "web" && Constants.executionEnvironment === "storeClient";
 
 const SCOPES = ["playlist-modify-private", "playlist-modify-public"];
 const PLAYLIST_NAME = "Zicmu — Mes découvertes";
@@ -34,10 +40,13 @@ const discovery: AuthSession.DiscoveryDocument = {
   tokenEndpoint: "https://accounts.spotify.com/api/token",
 };
 
-const redirectUri = AuthSession.makeRedirectUri({
-  scheme: "zicmu",
-  path: "spotify-callback",
-});
+// Web : l'adresse de retour DOIT être exactement celle enregistrée au dashboard
+// Spotify (https://zicmu.expo.app) — donc la connexion web ne marche qu'en prod,
+// pas sur localhost. Natif : le scheme de l'app.
+const redirectUri =
+  Platform.OS === "web"
+    ? "https://zicmu.expo.app"
+    : AuthSession.makeRedirectUri({ scheme: "zicmu", path: "spotify-callback" });
 
 interface Session {
   accessToken: string;
