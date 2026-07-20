@@ -10,7 +10,10 @@ import { FEATURED_ARTISTS, FEATURED_LABEL } from "./featured";
 
 const API = "https://api.deezer.com";
 
-/** Charts Deezer utilisés pour alimenter Découvrir (ids officiels /genre). */
+/** Charts Deezer utilisés pour alimenter Découvrir (ids officiels /genre).
+    ⚠️ Les labels sont des CLÉS d'algo (genreScores) : ne jamais renommer un
+    label existant (ça effacerait les goûts déjà appris), on ne fait qu'ajouter.
+    Les plus grand public d'abord (l'onboarding n'affiche que les premiers). */
 export const DEEZER_GENRES: { id: number; label: string }[] = [
   { id: 132, label: "Pop" },
   { id: 116, label: "Rap / Hip-Hop" },
@@ -18,11 +21,28 @@ export const DEEZER_GENRES: { id: number; label: string }[] = [
   { id: 106, label: "Électro" },
   { id: 113, label: "Dance" },
   { id: 165, label: "R&B" },
-  { id: 85, label: "Alternative" },
   { id: 52, label: "Chanson française" },
-  { id: 466, label: "Folk" },
+  { id: 197, label: "Latino" },
+  { id: 464, label: "Metal" },
+  { id: 144, label: "Reggae" },
+  { id: 169, label: "Soul & Funk" },
   { id: 129, label: "Jazz" },
+  // ── au-delà, filtres uniquement (pas dans l'onboarding) ──
+  { id: 85, label: "Alternative" },
+  { id: 466, label: "Folk" },
+  { id: 98, label: "Classique" },
+  { id: 153, label: "Blues" },
+  { id: 84, label: "Country" },
+  { id: 2, label: "Musique africaine" },
+  { id: 75, label: "Musique brésilienne" },
+  { id: 12, label: "Musique arabe" },
+  { id: 16, label: "Musique asiatique" },
+  { id: 81, label: "Musique indienne" },
+  { id: 173, label: "Films / Jeux vidéo" },
 ];
+
+/** Sous-ensemble grand public montré à l'onboarding (12 chips, pas 23). */
+export const ONBOARDING_GENRES = DEEZER_GENRES.slice(0, 12);
 
 let jsonpCounter = 0;
 

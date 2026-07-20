@@ -53,16 +53,27 @@ interface Session {
   refreshToken?: string;
   expiresAt: number; // ms epoch
   playlistId?: string;
+  /** ids Deezer déjà envoyés à Spotify — évite les doublons dans la playlist */
+  pushedIds?: string[];
 }
 
 let session: Session | null = null;
 let loaded = false;
 
+/** Lien web vers la playlist « Zicmu — Mes découvertes » (null si pas créée). */
+function playlistUrl(): string | null {
+  return session?.playlistId
+    ? `https://open.spotify.com/playlist/${session.playlistId}`
+    : null;
+}
+
 /* --- état réactif (bouton Profil) --- */
 const subs = new Set<() => void>();
 let connectedSnapshot = false;
+let playlistSnapshot: string | null = null;
 function emit() {
   connectedSnapshot = !!session;
+  playlistSnapshot = playlistUrl();
   subs.forEach(fn => fn());
 }
 export function useSpotifyConnected(): boolean {
@@ -73,6 +84,17 @@ export function useSpotifyConnected(): boolean {
     },
     () => connectedSnapshot,
     () => connectedSnapshot
+  );
+}
+/** Lien vers la playlist Zicmu sur Spotify (réactif) — null tant qu'inexistante. */
+export function useSpotifyPlaylistUrl(): string | null {
+  return useSyncExternalStore(
+    fn => {
+      subs.add(fn);
+      return () => subs.delete(fn);
+    },
+    () => playlistSnapshot,
+    () => playlistSnapshot
   );
 }
 
@@ -187,6 +209,11 @@ export async function connectSpotify(): Promise<boolean> {
     };
     await persist();
     emit();
+    // crée la playlist « Zicmu — Mes découvertes » dès la connexion : le lien
+    // est dispo immédiatement dans le Profil, et le premier like est plus rapide
+    ensurePlaylist(token.accessToken)
+      .then(() => emit())
+      .catch(() => {});
     return true;
   } catch {
     return false;
@@ -225,6 +252,8 @@ async function ensurePlaylist(token: string): Promise<string | null> {
     par artiste + titre) et l'ajoute à la playlist. Best effort, silencieux. */
 export async function addLikedToSpotify(track: Track): Promise<void> {
   if (!spotifyReady) return;
+  // déjà envoyé pendant cette installation → on n'ajoute pas de doublon
+  if (session?.pushedIds?.includes(track.id)) return;
   const token = await validToken();
   if (!token) return;
 
@@ -250,8 +279,14 @@ export async function addLikedToSpotify(track: Track): Promise<void> {
 
   // ⚠️ Route /items obligatoirement : Spotify a remplacé /tracks (qui renvoie
   // désormais 403 Forbidden) par /items en février.
-  await api(token, `/playlists/${playlistId}/items`, {
-    method: "POST",
-    body: JSON.stringify({ uris: [uri] }),
-  });
+  const res = await api<{ snapshot_id?: string }>(
+    token,
+    `/playlists/${playlistId}/items`,
+    { method: "POST", body: JSON.stringify({ uris: [uri] }) }
+  );
+  // ajout réussi → on mémorise l'id pour ne jamais le renvoyer (anti-doublon)
+  if (res?.snapshot_id && session) {
+    session.pushedIds = [...(session.pushedIds ?? []), track.id].slice(-1000);
+    await persist();
+  }
 }

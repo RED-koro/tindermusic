@@ -1,15 +1,18 @@
 /* Profil — stats de swipes, genres préférés/évités, connexion Spotify */
 
 import { Ionicons } from "@expo/vector-icons";
+import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
   Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,6 +23,7 @@ import {
   spotifyNeedsBuild,
   spotifyReady,
   useSpotifyConnected,
+  useSpotifyPlaylistUrl,
 } from "../../lib/spotify";
 import { useStore } from "../../lib/store";
 import { C } from "../../lib/theme";
@@ -29,8 +33,21 @@ import { S } from "../../lib/strings";
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { state, resetData } = useStore();
+  const { state, resetData, setDisplayName } = useStore();
   const spotifyConnected = useSpotifyConnected();
+  const playlistUrl = useSpotifyPlaylistUrl();
+
+  const name = state.displayName.trim();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const openEdit = () => {
+    setDraft(name);
+    setEditing(true);
+  };
+  const saveName = () => {
+    setDisplayName(draft);
+    setEditing(false);
+  };
 
   const onSpotify = async () => {
     // Expo Go / web : la redirection OAuth ne peut pas revenir vers l'app —
@@ -81,15 +98,22 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <Text style={styles.h1}>{S.profile.title}</Text>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
+        <Pressable style={styles.header} onPress={openEdit}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>A</Text>
+            {name ? (
+              <Text style={styles.avatarText}>{name[0].toUpperCase()}</Text>
+            ) : (
+              <Ionicons name="person" size={30} color="#fff" />
+            )}
           </View>
-          <View>
-            <Text style={styles.name}>Andy</Text>
+          <View style={{ flexShrink: 1 }}>
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>{name || S.profile.namePlaceholder}</Text>
+              <Ionicons name="pencil" size={14} color={C.muted} />
+            </View>
             <Text style={styles.sub}>{profileTagline(state.swipes)}</Text>
           </View>
-        </View>
+        </Pressable>
 
         <View style={styles.stats}>
           <Stat value={state.swipes} label={S.profile.swipes} />
@@ -140,6 +164,16 @@ export default function ProfileScreen() {
           </Pressable>
         )}
 
+        {spotifyConnected && playlistUrl && (
+          <Pressable
+            style={styles.playlistLink}
+            onPress={() => Linking.openURL(playlistUrl)}
+          >
+            <Ionicons name="open-outline" size={15} color="#1DB954" />
+            <Text style={styles.playlistLinkText}>{S.profile.openPlaylist}</Text>
+          </Pressable>
+        )}
+
         <Pressable style={styles.legalBtn} onPress={() => router.push("/legal")}>
           <Text style={styles.legalText}>{S.profile.legal}</Text>
         </Pressable>
@@ -149,6 +183,28 @@ export default function ProfileScreen() {
         </Pressable>
       </ScrollView>
       <MiniPlayer />
+
+      <Modal visible={editing} transparent animationType="fade" onRequestClose={() => setEditing(false)}>
+        <Pressable style={styles.editBackdrop} onPress={() => setEditing(false)}>
+          <Pressable style={styles.editSheet} onPress={() => {}}>
+            <Text style={styles.editTitle}>{S.profile.nameTitle}</Text>
+            <TextInput
+              style={styles.editInput}
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={S.profile.namePlaceholder}
+              placeholderTextColor={C.muted}
+              autoFocus
+              maxLength={24}
+              returnKeyType="done"
+              onSubmitEditing={saveName}
+            />
+            <Pressable style={styles.editSave} onPress={saveName}>
+              <Text style={styles.editSaveText}>{S.profile.nameSave}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -207,8 +263,50 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarText: { color: "#fff", fontSize: 26, fontWeight: "800" },
-  name: { color: C.text, fontSize: 19, fontWeight: "700" },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  name: { color: C.text, fontSize: 19, fontWeight: "700", flexShrink: 1 },
   sub: { color: C.muted, fontSize: 13.5, marginTop: 2, maxWidth: 240 },
+  playlistLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    marginTop: -6,
+    paddingVertical: 6,
+  },
+  playlistLinkText: { color: "#1DB954", fontSize: 13.5, fontWeight: "600" },
+  editBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,.6)",
+    justifyContent: "center",
+    paddingHorizontal: 30,
+  },
+  editSheet: {
+    backgroundColor: C.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.line,
+    padding: 22,
+    gap: 14,
+  },
+  editTitle: { color: C.text, fontSize: 18, fontWeight: "800" },
+  editInput: {
+    backgroundColor: C.card2,
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    color: C.text,
+    fontSize: 16,
+  },
+  editSave: {
+    backgroundColor: C.accent2,
+    borderRadius: 20,
+    paddingVertical: 13,
+    alignItems: "center",
+  },
+  editSaveText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   stats: { flexDirection: "row", gap: 12 },
   stat: {
     flex: 1,

@@ -10,6 +10,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -37,6 +38,7 @@ import { CoverArt } from "../../lib/covers";
 import {
   ArtistSeed,
   DEEZER_GENRES,
+  ONBOARDING_GENRES,
   fetchChart,
   fetchDiscoveryFeed,
   fetchFeaturedTracks,
@@ -535,7 +537,7 @@ function Onboarding({ onDone }: { onDone: (genres: string[]) => void }) {
         <Text style={styles.obTitle}>{S.discover.obTitle}</Text>
         <Text style={styles.obSub}>{S.discover.obSub}</Text>
         <View style={styles.obChips}>
-          {DEEZER_GENRES.map(g => {
+          {ONBOARDING_GENRES.map(g => {
             const on = selected.includes(g.label);
             return (
               <Pressable
@@ -598,7 +600,11 @@ function FiltersSheet({
         <Pressable style={styles.sheet} onPress={() => {}}>
           <Text style={styles.sheetTitle}>{S.discover.filterTitle}</Text>
           <Text style={styles.sheetHint}>{S.discover.filterHint}</Text>
-          <View style={styles.obChips}>
+          <ScrollView
+            style={styles.sheetScroll}
+            contentContainerStyle={styles.obChips}
+            showsVerticalScrollIndicator={false}
+          >
             {options.map(label => {
               const on = selected.includes(label);
               return (
@@ -614,7 +620,7 @@ function FiltersSheet({
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
           <View style={styles.sheetActions}>
             <Pressable testID="filter-clear" style={styles.sheetClear} onPress={() => onApply([])}>
               <Text style={{ color: C.muted, fontSize: 14 }}>{S.discover.filterClear}</Text>
@@ -1034,6 +1040,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: { color: C.text, fontSize: 19, fontWeight: "800" },
   sheetHint: { color: C.muted, fontSize: 13.5 },
+  sheetScroll: { maxHeight: 320, alignSelf: "stretch" },
   sheetActions: {
     flexDirection: "row",
     alignItems: "center",

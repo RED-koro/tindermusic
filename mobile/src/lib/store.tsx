@@ -40,6 +40,8 @@ interface ZicmuState {
   lastDecision: LastDecision | null;
   /** Onboarding "choisis tes genres" terminé (amorce l'algo au 1er lancement) */
   onboarded: boolean;
+  /** Prénom affiché dans le Profil (vide = pas encore renseigné) */
+  displayName: string;
   /** Statistiques d'écoute (profil) */
   stats: { listenSeconds: number };
 }
@@ -54,6 +56,7 @@ const EMPTY: ZicmuState = {
   savedDeezer: {},
   lastDecision: null,
   onboarded: false,
+  displayName: "",
   stats: { listenSeconds: 0 },
 };
 
@@ -75,6 +78,7 @@ interface StoreValue {
   toggleLiked: (track: Track) => void;
   moveToLiked: (track: Track) => void;
   completeOnboarding: (genres: string[]) => void;
+  setDisplayName: (name: string) => void;
   resetBuckets: () => void;
   resetData: () => void;
 }
@@ -330,6 +334,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }));
   }, []);
 
+  const setDisplayName = useCallback((name: string) => {
+    setState(prev => ({ ...prev, displayName: name.trim().slice(0, 24) }));
+  }, []);
+
   const resetBuckets = useCallback(() => {
     setState(prev => ({ ...prev, liked: [], later: [], disliked: [] }));
   }, []);
@@ -352,12 +360,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       toggleLiked,
       moveToLiked,
       completeOnboarding,
+      setDisplayName,
       resetBuckets,
       resetData,
     }),
     [state, hydrated, byId, bucketOf, affinity, decide, undoLastDecision,
      registerTracks, restore, toggleLiked, moveToLiked,
-     completeOnboarding, resetBuckets, resetData]
+     completeOnboarding, setDisplayName, resetBuckets, resetData]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
