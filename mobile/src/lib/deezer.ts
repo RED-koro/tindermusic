@@ -98,6 +98,22 @@ async function request<T>(path: string, tries = 3): Promise<T> {
 const toHttps = (url?: string | null) =>
   url ? url.replace(/^http:\/\//i, "https://") : url ?? null;
 
+/* ─── Validation des données externes ─────────────────────────────────────
+   On ne fait JAMAIS confiance aveugle à une réponse d'API : champs coercés
+   au bon type, textes bornés, URLs vérifiées. Une réponse malformée (ou un
+   Deezer compromis) ne doit produire que des titres ignorés, pas un bug. */
+
+/** Texte sûr : forcé en chaîne, borné en longueur. */
+const safeText = (v: unknown, max = 200): string =>
+  typeof v === "string" ? v.slice(0, max) : String(v ?? "").slice(0, max);
+
+/** URL sûre : https uniquement, sinon null. */
+const safeUrl = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  const u = toHttps(v);
+  return u && /^https:\/\/[^\s]+$/.test(u) ? u : null;
+};
+
 interface DeezerTrack {
   id: number;
   title: string;
@@ -118,12 +134,18 @@ function toTrack(
   genreLabel?: string,
   featured = false
 ): Track | null {
-  if (!t?.preview) return null; // sans extrait, inutilisable dans Zicmu
+  // id numérique et extrait https valide obligatoires, sinon titre ignoré
+  if (!t || typeof t.id !== "number" || !Number.isFinite(t.id)) return null;
+  const previewUrl = safeUrl(t.preview);
+  if (!previewUrl) return null; // sans extrait sûr, inutilisable dans Zicmu
   return {
-    id: `dz-${t.id}`,
-    title: t.title,
-    artist: t.artist?.name ?? "Artiste inconnu",
-    artistId: t.artist?.id,
+    id: `dz-${Math.trunc(t.id)}`,
+    title: safeText(t.title) || "Titre inconnu",
+    artist: safeText(t.artist?.name) || "Artiste inconnu",
+    artistId:
+      typeof t.artist?.id === "number" && Number.isFinite(t.artist.id)
+        ? t.artist.id
+        : undefined,
     genres: [genreLabel ?? "Découverte"],
     // scene/hue inutilisés : la vraie pochette remplace le SVG généré
     scene: "sun",
@@ -131,10 +153,10 @@ function toTrack(
     hue2: 0,
     deezer: true,
     featured: featured || undefined,
-    popularity: t.rank,
-    album: t.album?.title,
-    previewUrl: toHttps(t.preview) ?? t.preview,
-    coverUri: toHttps(t.album?.cover_big || t.album?.cover_medium || null),
+    popularity: typeof t.rank === "number" ? t.rank : undefined,
+    album: t.album?.title ? safeText(t.album.title) : undefined,
+    previewUrl,
+    coverUri: safeUrl(t.album?.cover_big || t.album?.cover_medium),
   };
 }
 
@@ -161,7 +183,7 @@ export async function fetchChart(
   const d = await request<{ data?: DeezerTrack[] }>(
     `/chart/${genreId}/tracks?limit=${limit}&index=${index}`
   );
-  return (d.data ?? []).map(t => toTrack(t, label)).filter((t): t is Track => !!t);
+  return (d.data ?? []).slice(0, 100).map(t => toTrack(t, label)).filter((t): t is Track => !!t);
 }
 
 /** Top titres d'un artiste (tagués avec le genre du titre "graine"). */
@@ -175,6 +197,7 @@ export async function fetchArtistTop(
     `/artist/${artistId}/top?limit=${limit}`
   );
   return (d.data ?? [])
+    .slice(0, 100)
     .map(t => toTrack(t, genreLabel, featured))
     .filter((t): t is Track => !!t);
 }
@@ -323,16 +346,18 @@ export async function searchDeezer(query: string, limit = 25): Promise<Track[]> 
   const d = await request<{ data?: DeezerTrack[] }>(
     `/search?q=${encodeURIComponent(query)}&limit=${limit}`
   );
-  return (d.data ?? []).map(t => toTrack(t)).filter((t): t is Track => !!t);
+  return (d.data ?? []).slice(0, 100).map(t => toTrack(t)).filter((t): t is Track => !!t);
 }
 
 /** Les URLs d'extraits Deezer expirent au bout de quelques heures :
     on les rafraîchit au moment de la lecture. */
 export async function refreshPreviewUrl(trackId: string): Promise<string | null> {
   const numericId = trackId.replace(/^dz-/, "");
+  // garde-fou : l'id doit être purement numérique (rien d'autre ne part en URL)
+  if (!/^\d+$/.test(numericId)) return null;
   try {
     const t = await request<DeezerTrack>(`/track/${numericId}`);
-    return toHttps(t?.preview) || null;
+    return safeUrl(t?.preview);
   } catch {
     return null;
   }

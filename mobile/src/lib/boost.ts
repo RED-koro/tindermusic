@@ -43,7 +43,7 @@ async function fetchRows(withSponsored: boolean): Promise<Response> {
   const cols = withSponsored
     ? "artist_id,weight,sponsored"
     : "artist_id,weight";
-  const url = `${SUPABASE_URL}/rest/v1/boosted_artists?select=${cols}&active=eq.true`;
+  const url = `${SUPABASE_URL}/rest/v1/boosted_artists?select=${cols}&active=eq.true&limit=100`;
   const controller = new AbortController();
   const deadline = setTimeout(() => controller.abort(), 8000);
   return fetch(url, {
@@ -72,11 +72,18 @@ export async function fetchBoostedArtists(): Promise<BoostMap> {
       weight: number | null;
       sponsored?: boolean | null;
     }[];
+    // validation : ids numériques uniquement, poids borné à [0, 3] — même une
+    // ligne aberrante en base ne peut pas écraser le classement du deck
     const map: BoostMap = new Map(
-      rows.map(row => [
-        row.artist_id,
-        { weight: row.weight ?? 1, sponsored: row.sponsored === true },
-      ])
+      rows
+        .filter(row => typeof row.artist_id === "number" && Number.isFinite(row.artist_id))
+        .map(row => [
+          row.artist_id,
+          {
+            weight: Math.min(Math.max(Number(row.weight ?? 1) || 1, 0), 3),
+            sponsored: row.sponsored === true,
+          },
+        ])
     );
     cache = { at: Date.now(), map };
     return map;
